@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth, authDisabled } from "@/auth";
+import { getUser } from "@/auth";
 import { db } from "@/lib/db";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!authDisabled && !(await auth())?.user) return new NextResponse("Not signed in", { status: 401 });
+  if (!(await getUser())) return new NextResponse("Not signed in", { status: 401 });
   const { id } = await params;
   const photo = await db.jobCardPhoto.findUnique({ where: { id } });
   if (!photo) return new NextResponse("Not found", { status: 404 });

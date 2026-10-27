@@ -22,7 +22,7 @@ Money is stored in cents (no rounding drift). Document numbers (`QT-0001`, `JC-0
 
 - **Next.js 15** (App Router, server actions) + **TypeScript** + **Tailwind CSS 4**
 - **PostgreSQL** via **Prisma**
-- **Auth.js** (Google sign-in, restricted to an allow-list of email addresses)
+- **Auth.js** (email + password sign-in with users managed in Settings; optional Google sign-in)
 - **googleapis** for Google Calendar
 
 ## Run it locally
@@ -36,15 +36,23 @@ npx prisma migrate dev        # creates the tables
 npm run dev                   # http://localhost:3000
 ```
 
-To try it without Google set up, put `AUTH_DISABLED="true"` in `.env`. This skips sign-in in development only; it is ignored in production builds.
+Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`, or put `AUTH_DISABLED="true"` in `.env` to skip sign-in (development only; ignored in production builds).
 
-## Deploy (Vercel + Neon, recommended)
+## Deploy (Vercel + Neon)
 
-1. Create a Postgres database on [Neon](https://neon.tech) (or Supabase). Copy its connection string.
-2. Push this repo to GitHub and import it in [Vercel](https://vercel.com/new).
-3. In Vercel → Project → Settings → Environment Variables, add every variable from `.env.example` (leave `AUTH_DISABLED` out).
-4. In Vercel → Settings → Build & Development, set **Build Command** to `npm run vercel-build` (this applies database migrations on every deploy).
-5. Deploy, then set up Google below and add your production URL to the OAuth client.
+1. Sign up at [vercel.com](https://vercel.com/signup) with your GitHub account.
+2. **Add New → Project → Import** this repository. Before clicking Deploy, open **Build and Output Settings** and set **Build Command** to `npm run vercel-build` (this applies database migrations on every deploy).
+3. Add these **Environment Variables**:
+   - `AUTH_SECRET`: a long random string. Generate one at <https://generate-secret.vercel.app/32>.
+   - `ADMIN_EMAIL`: the email you will sign in with.
+   - `ADMIN_PASSWORD`: a strong password, used only for the very first sign-in.
+   - `APP_TIMEZONE`: `Africa/Johannesburg`.
+4. Click **Deploy**. The first build fails because there is no database yet; that is expected.
+5. In the project, open **Storage → Create Database → Neon (Serverless Postgres)**, accept the defaults and connect it to the project. This sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED` automatically.
+6. **Deployments → ⋯ on the latest → Redeploy.** When it is green, open the site and sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+7. Add staff in **Settings → Users**. Then fill in company details, banking, PCO number and signature, products and warranty terms in **Settings**.
+
+Sign-in uses email and password. Google is optional: setting `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` adds "Sign in with Google" and enables Calendar sync.
 
 ## Google sign-in and Calendar sync
 
@@ -56,7 +64,7 @@ You need one OAuth client from Google Cloud. About 10 minutes:
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID** → *Web application*.
    - Authorised JavaScript origins: `http://localhost:3000` and your production URL.
    - Authorised redirect URIs: `http://localhost:3000/api/auth/callback/google` and `https://YOUR-DOMAIN/api/auth/callback/google`.
-5. Copy the Client ID and Client Secret into `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`. Put the staff emails in `ALLOWED_EMAILS`.
+5. Copy the Client ID and Client Secret into `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` (Vercel → Settings → Environment Variables), then redeploy. Kudu users can then also sign in with the Google account that has the same email; `ALLOWED_EMAILS` can admit extra Google accounts.
 6. Sign in to Kudu with Google and approve calendar access. Then go to **Settings → Calendar connection → Use my Google account**.
 7. Optional: to use a shared company calendar instead of your personal one, put its Calendar ID (Google Calendar → calendar settings → *Integrate calendar*) in **Settings → Google Calendar → Calendar ID**.
 

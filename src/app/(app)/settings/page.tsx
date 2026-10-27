@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/settings";
 import { googleConfigured } from "@/lib/google";
 import { deleteProduct, disconnectGoogleCalendar, saveProduct, saveSettings, useMyGoogleCalendar } from "@/app/actions/settings";
 import { SignaturePad } from "@/components/JobCardEditors";
+import { addUser, resetPassword, setUserDisabled } from "@/app/actions/users";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { Field, Flash, PageHeader, SectionTitle } from "@/components/ui";
 
@@ -13,6 +14,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const user = await requireUser();
   const { msg, err } = await searchParams;
   const s = await getSettings();
+  const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
   const products = await db.product.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
   const syncUser = s.googleSyncUserId ? await db.user.findUnique({ where: { id: s.googleSyncUserId } }) : null;
 
@@ -108,6 +110,39 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </section>
         <button className="btn-primary">Save settings</button>
       </form>
+
+      <div id="users" className="card mt-6 p-6">
+        <SectionTitle>Users</SectionTitle>
+        <p className="mb-3 text-sm text-charcoal-500">People who can sign in with email and password. Passwords need at least 10 characters.</p>
+        <div className="divide-y divide-charcoal-100">
+          {users.map((u) => (
+            <div key={u.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+              <div className="min-w-48 flex-1">
+                <div className="font-medium">{u.name} {u.id === user.id && <span className="text-xs text-charcoal-500">(you)</span>}</div>
+                <div className="text-xs text-charcoal-500">{u.email}{u.disabled && " · disabled"}{!u.passwordHash && " · Google only"}</div>
+              </div>
+              <form action={resetPassword} className="flex gap-2">
+                <input type="hidden" name="id" value={u.id} />
+                <input name="password" type="password" minLength={10} className="input w-44 py-1.5" placeholder="New password" autoComplete="new-password" required />
+                <button className="btn-outline py-1.5">Set password</button>
+              </form>
+              {u.id !== user.id && (
+                <form action={setUserDisabled}>
+                  <input type="hidden" name="id" value={u.id} />
+                  <input type="hidden" name="disabled" value={String(!u.disabled)} />
+                  <button className={u.disabled ? "btn-outline py-1.5" : "btn-danger py-1.5"}>{u.disabled ? "Enable" : "Disable"}</button>
+                </form>
+              )}
+            </div>
+          ))}
+        </div>
+        <form action={addUser} className="mt-4 flex flex-wrap items-end gap-2">
+          <input name="name" className="input w-44 flex-none" placeholder="Name" />
+          <input name="email" type="email" className="input w-56 flex-none" placeholder="Email" required />
+          <input name="password" type="password" minLength={10} className="input w-44 flex-none" placeholder="Password" autoComplete="new-password" required />
+          <button className="btn-primary py-1.5">+ Add user</button>
+        </form>
+      </div>
 
       <div id="products" className="card mt-6 p-6">
         <SectionTitle>Products (active ingredients list on job cards)</SectionTitle>
