@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* Kudu Systems palette, sampled from the logo */
+@theme {
+  --color-kudu-50: #fbf1f3;
+  --color-kudu-100: #f5dbe0;
+  --color-kudu-200: #ebb4bf;
+  --color-kudu-500: #b3203f;
+  --color-kudu-600: #9b1530; /* primary crimson */
+  --color-kudu-700: #7f0f26;
+  --color-kudu-800: #5f0b1c;
+  --color-charcoal-50: #f4f5f7;
+  --color-charcoal-100: #e6e8ec;
+  --color-charcoal-200: #cdd1d8;
+  --color-charcoal-400: #8a93a3;
+  --color-charcoal-500: #5d6676;
+  --color-charcoal-600: #3f4756;
+  --color-charcoal-700: #2b323e;
+  --color-charcoal-800: #1f2530; /* logo charcoal */
+  --color-charcoal-900: #151a22;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-charcoal-50);
+  color: var(--color-charcoal-800);
+}
+
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-kudu-600 text-white hover:bg-kudu-700;
+}
+@utility btn-dark {
+  @apply btn bg-charcoal-800 text-white hover:bg-charcoal-900;
+}
+@utility btn-outline {
+  @apply btn border border-charcoal-200 bg-white text-charcoal-700 hover:bg-charcoal-50;
+}
+@utility btn-danger {
+  @apply btn border border-kudu-200 bg-white text-kudu-700 hover:bg-kudu-50;
+}
+@utility card {
+  @apply rounded-lg border border-charcoal-100 bg-white shadow-sm;
+}
+@utility label {
+  @apply mb-1 block text-xs font-semibold tracking-wide text-charcoal-500 uppercase;
+}
+@utility input {
+  @apply w-full rounded-md border border-charcoal-200 bg-white px-3 py-2 text-sm text-charcoal-800 placeholder:text-charcoal-400 focus:border-kudu-600 focus:ring-2 focus:ring-kudu-100 focus:outline-none;
+}
+@utility table {
+  @apply w-full text-left text-sm;
+  & th {
+    @apply border-b border-charcoal-100 bg-charcoal-50 px-3 py-2 text-xs font-semibold tracking-wide text-charcoal-500 uppercase;
+  }
+  & td {
+    @apply border-b border-charcoal-100 px-3 py-2.5 align-top;
+  }
+  & tbody tr:hover td {
+    @apply bg-charcoal-50/60;
+  }
+}
+
+/* Documents (quotations, job cards, invoices) print cleanly on A4. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+  .print-main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

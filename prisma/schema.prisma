@@ -1,0 +1,334 @@
+// Kudu Systems CRM & BPA
+// All money values are stored as integer cents to avoid rounding errors.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Auth (Auth.js / NextAuth) ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- Company settings (single row, id = 1) ----------
+
+model Settings {
+  id                 Int     @id @default(1)
+  companyName        String  @default("Kudu Systems")
+  tagline            String  @default("CRM & BPA Online System")
+  email              String  @default("")
+  phone              String  @default("")
+  website            String  @default("")
+  address            String  @default("")
+  vatNumber          String  @default("")
+  regNumber          String  @default("")
+  currency           String  @default("ZAR")
+  currencySymbol     String  @default("R")
+  vatRate            Float   @default(15)
+  bankName           String  @default("")
+  bankAccountName    String  @default("")
+  bankAccountNumber  String  @default("")
+  bankBranchCode     String  @default("")
+  quoteValidityDays  Int     @default(30)
+  invoiceDueDays     Int     @default(30)
+  quoteTerms         String  @default("This quotation is valid for the period stated. Prices include VAT where indicated.")
+  invoiceTerms       String  @default("Payment is due by the due date shown. Please use the invoice number as your payment reference.")
+  quotePrefix        String  @default("QT-")
+  jobCardPrefix      String  @default("JC-")
+  invoicePrefix      String  @default("INV-")
+  nextQuoteNo        Int     @default(1)
+  nextJobCardNo      Int     @default(1)
+  nextInvoiceNo      Int     @default(1)
+  googleCalendarId   String  @default("primary")
+  googleSyncUserId   String? // user whose Google account the calendar sync runs as
+  googleSyncToken    String?
+  // Job card & service warranty
+  jobCardTitle       String  @default("Job Card & Service Warranty")
+  jobCardSubtitle    String  @default("Registered Pest Control Operator")
+  pcoNumber          String  @default("")
+  pcoSignature       String? @db.Text // PNG data URL printed in the PCO block
+  warrantyMonths     Int     @default(3)
+  warrantyCovers     String  @default("General Pest Control\nTermites / WDI\nRodents\nFumigation\nOther") // one option per line
+  warrantyTerms      String  @default("Covers re-treatment of the pest species and areas listed above, if activity recurs under normal conditions; a follow-up fee is applicable.\nExcludes new infestations by a different pest, and conditions beyond our control (alterations, water damage, etc.).\nNotify us in writing within 14 days of any recurring activity to remain covered under this warranty.\nVoid if unauthorised pest control products or other contractors are used in the treated area.\nReasonable access must be given for re-treatment visits; failure to do so may void cover for that area.\nNon-transferable — applies only to the client and property named above.") // one term per line
+}
+
+// Registered products offered on the job card's Active Ingredients list.
+model Product {
+  id               String  @id @default(cuid())
+  name             String
+  activeIngredient String  @default("")
+  regNumber        String  @default("")
+  active           Boolean @default(true)
+  sortOrder        Int     @default(0)
+}
+
+// ---------- Customers ----------
+
+enum CustomerType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+model Customer {
+  id              String          @id @default(cuid())
+  type            CustomerType    @default(BUSINESS)
+  name            String // display name: company name or person's full name
+  contactPerson   String          @default("")
+  email           String          @default("")
+  phone           String          @default("")
+  altPhone        String          @default("")
+  vatNumber       String          @default("")
+  regNumber       String          @default("")
+  billingAddress  String          @default("")
+  siteAddress     String          @default("")
+  notes           String          @default("")
+  archived        Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  quotations      Quotation[]
+  jobCards        JobCard[]
+  invoices        Invoice[]
+  events          CalendarEvent[]
+}
+
+// ---------- Quotations ----------
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model Quotation {
+  id          String          @id @default(cuid())
+  number      String          @unique
+  customerId  String
+  customer    Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  status      QuotationStatus @default(DRAFT)
+  title       String          @default("")
+  issueDate   DateTime        @default(now())
+  validUntil  DateTime
+  siteAddress String          @default("")
+  notes       String          @default("")
+  terms       String          @default("")
+  vatRate     Float           @default(15)
+  discount    Int             @default(0) // cents, before VAT
+  subtotal    Int             @default(0)
+  vatAmount   Int             @default(0)
+  total       Int             @default(0)
+  items       QuotationItem[]
+  jobCards    JobCard[]
+  invoices    Invoice[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model QuotationItem {
+  id          String    @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  sortOrder   Int       @default(0)
+  description String
+  quantity    Float     @default(1)
+  unit        String    @default("")
+  unitPrice   Int       @default(0) // cents, excl. VAT
+}
+
+// ---------- Job Cards (Job Card & Service Warranty) ----------
+
+enum JobCardStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model JobCard {
+  id                    String          @id @default(cuid())
+  number                String          @unique
+  customerId            String
+  customer              Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  quotationId           String?
+  quotation             Quotation?      @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  status                JobCardStatus   @default(SCHEDULED)
+  // 1. Job details
+  jobDate               DateTime?
+  technician            String          @default("")
+  jobType               String          @default("")
+  priority              String          @default("Normal")
+  scheduledStart        DateTime?
+  scheduledEnd          DateTime?
+  scopeOfWork           String          @default("") // instructions, pre-filled from the quotation
+  // 2. Client details (site-specific; defaults from the customer)
+  contactNumber         String          @default("")
+  siteContact           String          @default("")
+  siteAddress           String          @default("")
+  // 3. Work performed
+  areaTreated           String          @default("")
+  workDescription       String          @default("")
+  // 5. Warranty
+  warrantyNo            String          @default("")
+  warrantyStart         DateTime?
+  warrantyEnd           DateTime?
+  warrantyCovers        String[]        @default([])
+  activeIngredients     String[]        @default([]) // snapshot of product labels at time of job
+  activeIngredientOther String          @default("")
+  warrantyComments      String          @default("")
+  // 7. Client sign-off
+  clientConfirmed       Boolean         @default(false)
+  customerSignName      String          @default("")
+  customerSignature     String?         @db.Text // PNG data URL
+  signedAt              DateTime?
+  photos                JobCardPhoto[]
+  invoices              Invoice[]
+  events                CalendarEvent[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+enum PhotoKind {
+  BEFORE
+  AFTER
+  EXTRA
+}
+
+// Photos are uploaded one at a time (keeps each request small) and attached when the job card is saved.
+model JobCardPhoto {
+  id        String    @id @default(cuid())
+  jobCardId String?
+  jobCard   JobCard?  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  kind      PhotoKind @default(EXTRA)
+  sortOrder Int       @default(0)
+  dataUrl   String    @db.Text // compressed JPEG data URL
+  createdAt DateTime  @default(now())
+}
+
+// ---------- Invoices ----------
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        @unique
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  quotationId String?
+  quotation   Quotation?    @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  jobCardId   String?
+  jobCard     JobCard?      @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  status      InvoiceStatus @default(DRAFT)
+  issueDate   DateTime      @default(now())
+  dueDate     DateTime
+  reference   String        @default("") // customer order number etc.
+  notes       String        @default("")
+  terms       String        @default("")
+  vatRate     Float         @default(15)
+  discount    Int           @default(0)
+  subtotal    Int           @default(0)
+  vatAmount   Int           @default(0)
+  total       Int           @default(0)
+  amountPaid  Int           @default(0)
+  items       InvoiceItem[]
+  payments    Payment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sortOrder   Int     @default(0)
+  description String
+  quantity    Float   @default(1)
+  unit        String  @default("")
+  unitPrice   Int     @default(0)
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount    Int
+  date      DateTime @default(now())
+  method    String   @default("EFT")
+  reference String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ---------- Calendar ----------
+
+model CalendarEvent {
+  id               String    @id @default(cuid())
+  title            String
+  description      String    @default("")
+  location         String    @default("")
+  start            DateTime
+  end              DateTime
+  allDay           Boolean   @default(false)
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  jobCardId        String?
+  jobCard          JobCard?  @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  googleEventId    String?   @unique
+  googleCalendarId String?
+  googleUpdatedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
