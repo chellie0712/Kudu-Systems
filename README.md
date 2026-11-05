@@ -48,7 +48,7 @@ Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`, or put `AUTH_DISABLED
    - `ADMIN_PASSWORD`: a strong password, used only for the very first sign-in.
    - `APP_TIMEZONE`: `Africa/Johannesburg`.
 4. Click **Deploy**. The first build fails because there is no database yet; that is expected.
-5. In the project, open **Storage → Create Database → Neon (Serverless Postgres)**, accept the defaults and connect it to the project. This sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED` automatically.
+5. In the project, open **Storage → Create Database → Neon (Serverless Postgres)**, accept the defaults and connect it to the project. This adds `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` and similar variables, which the app picks up automatically (you do not need to copy them into `DATABASE_URL`).
 6. **Deployments → ⋯ on the latest → Redeploy.** When it is green, open the site and sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 7. Add staff in **Settings → Users**. Then fill in company details, banking, PCO number and signature, products and warranty terms in **Settings**.
 
