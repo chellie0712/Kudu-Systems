@@ -7,10 +7,10 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
-    "postinstall": "prisma generate",
+    "vercel-build": "node scripts/with-db-env.mjs prisma generate && node scripts/with-db-env.mjs prisma migrate deploy && next build",
+    "postinstall": "node scripts/with-db-env.mjs prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:deploy": "node scripts/with-db-env.mjs prisma migrate deploy",
     "db:studio": "prisma studio"
   },
   "dependencies": {
