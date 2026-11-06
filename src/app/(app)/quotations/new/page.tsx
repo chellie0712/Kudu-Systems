@@ -1,5 +1,5 @@
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/ui";
 import { QuotationForm } from "@/components/QuotationForm";
@@ -7,6 +7,7 @@ import { QuotationForm } from "@/components/QuotationForm";
 export const metadata = { title: "New quotation" };
 
 export default async function NewQuotationPage({ searchParams }: { searchParams: Promise<{ customerId?: string }> }) {
+  const db = await tenantDb();
   await requireUser();
   const { customerId } = await searchParams;
   const [customers, settings] = await Promise.all([

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
 import { fromLocalInput } from "@/lib/format";
 import { deleteGoogleEvent, pullFromGoogle, pushEvent } from "@/lib/google";
@@ -18,6 +18,7 @@ function withMsg(path: string, params: string) {
 }
 
 export async function saveEvent(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const allDay = str(fd, "allDay") === "on";
@@ -55,6 +56,7 @@ export async function saveEvent(fd: FormData) {
 }
 
 export async function deleteEvent(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const ev = await db.calendarEvent.delete({ where: { id: str(fd, "id") } });
   await deleteGoogleEvent(ev.googleEventId, ev.googleCalendarId);
@@ -63,6 +65,7 @@ export async function deleteEvent(fd: FormData) {
 }
 
 export async function syncNow(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const to = back(fd, "/calendar");
   let message: string;

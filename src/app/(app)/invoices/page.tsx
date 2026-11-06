@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { InvoiceStatus } from "@prisma/client";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { money } from "@/lib/format";
 import { Flash, PageHeader } from "@/components/ui";
@@ -11,6 +11,7 @@ import { StatusFilter } from "@/components/StatusFilter";
 export const metadata = { title: "Invoices" };
 
 export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; msg?: string }> }) {
+  const db = await tenantDb();
   await requireUser();
   const { status, q = "", msg } = await searchParams;
   const settings = await getSettings();

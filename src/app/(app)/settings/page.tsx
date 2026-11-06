@@ -1,16 +1,18 @@
 import { authDisabled, requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { googleConfigured } from "@/lib/google";
 import { deleteProduct, disconnectGoogleCalendar, saveProduct, saveSettings, useMyGoogleCalendar } from "@/app/actions/settings";
 import { SignaturePad } from "@/components/JobCardEditors";
 import { addUser, resetPassword, setUserDisabled } from "@/app/actions/users";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { LogoInput } from "@/components/LogoInput";
 import { Field, Flash, PageHeader, SectionTitle } from "@/components/ui";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ msg?: string; err?: string }> }) {
+  const db = await tenantDb();
   const user = await requireUser();
   const { msg, err } = await searchParams;
   const s = await getSettings();
@@ -44,6 +46,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <Field label="Address" className="md:col-span-2">
               <textarea name="address" rows={3} className="input" defaultValue={s.address} />
             </Field>
+            <div className="md:col-span-2">
+              <span className="label">Logo (shown in the menu bar and printed on quotations, job cards and invoices)</span>
+              <LogoInput initial={s.logo} />
+            </div>
           </div>
         </section>
         <section>

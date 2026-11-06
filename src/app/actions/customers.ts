@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { CustomerType } from "@prisma/client";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
 
 export async function saveCustomer(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const data = {
@@ -32,6 +33,7 @@ export async function saveCustomer(fd: FormData) {
 }
 
 export async function setCustomerArchived(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const archived = str(fd, "archived") === "true";
@@ -41,6 +43,7 @@ export async function setCustomerArchived(fd: FormData) {
 }
 
 export async function deleteCustomer(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const counts = await db.customer.findUniqueOrThrow({

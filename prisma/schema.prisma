@@ -99,6 +99,7 @@ model Settings {
   jobCardSubtitle    String  @default("Registered Pest Control Operator")
   pcoNumber          String  @default("")
   pcoSignature       String? @db.Text // PNG data URL printed in the PCO block
+  logo               String? @db.Text // company logo as an image data URL, printed on documents
   warrantyMonths     Int     @default(3)
   warrantyCovers     String  @default("General Pest Control\nTermites / WDI\nRodents\nFumigation\nOther") // one option per line
   warrantyTerms      String  @default("Covers re-treatment of the pest species and areas listed above, if activity recurs under normal conditions; a follow-up fee is applicable.\nExcludes new infestations by a different pest, and conditions beyond our control (alterations, water damage, etc.).\nNotify us in writing within 14 days of any recurring activity to remain covered under this warranty.\nVoid if unauthorised pest control products or other contractors are used in the treated area.\nReasonable access must be given for re-treatment visits; failure to do so may void cover for that area.\nNon-transferable — applies only to the client and property named above.") // one term per line

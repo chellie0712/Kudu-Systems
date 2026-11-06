@@ -1,21 +1,26 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { authDisabled, requireUser, signOut } from "@/auth";
+import { CompanyLogo } from "@/components/CompanyLogo";
+import { getSettings } from "@/lib/settings";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const settings = await getSettings();
   return (
     <div className="flex min-h-screen flex-col">
       <header className="no-print flex h-20 items-center justify-between border-b-2 border-kudu-600 bg-white px-4 md:px-6">
         <Link href="/" className="flex items-center">
-          <Image src="/kudu-logo-sm.png" alt="Kudu Systems – CRM & BPA Online System" width={600} height={389} className="h-16 w-auto" priority />
+          <CompanyLogo logo={settings.logo} name={settings.companyName} className="h-16 w-auto" />
         </Link>
         <div className="flex items-center gap-3 text-sm">
           {authDisabled && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Local demo mode</span>
           )}
-          <span className="hidden text-charcoal-600 sm:inline">{user.name}</span>
+          <span className="hidden text-right leading-tight text-charcoal-600 sm:inline">
+            {user.name}
+            <span className="block text-xs text-charcoal-400">{settings.companyName}</span>
+          </span>
           {!authDisabled && (
             <form
               action={async () => {

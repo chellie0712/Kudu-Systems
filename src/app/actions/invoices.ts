@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { InvoiceStatus } from "@prisma/client";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
@@ -12,6 +12,7 @@ import { addDays } from "@/lib/format";
 
 /** Recalculate amount paid and set PAID / PARTIALLY_PAID / SENT accordingly. */
 async function refreshPaymentStatus(invoiceId: string) {
+  const db = await tenantDb();
   const inv = await db.invoice.findUniqueOrThrow({ where: { id: invoiceId }, include: { payments: true } });
   const amountPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
   let status = inv.status;
@@ -24,6 +25,7 @@ async function refreshPaymentStatus(invoiceId: string) {
 }
 
 export async function saveInvoice(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const settings = await getSettings();
   const id = str(fd, "id");
@@ -60,6 +62,7 @@ export async function saveInvoice(fd: FormData) {
 }
 
 export async function setInvoiceStatus(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   await db.invoice.update({ where: { id }, data: { status: str(fd, "status") as InvoiceStatus } });
@@ -69,6 +72,7 @@ export async function setInvoiceStatus(fd: FormData) {
 }
 
 export async function recordPayment(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const invoiceId = str(fd, "invoiceId");
   const amount = cents(fd, "amount");
@@ -88,6 +92,7 @@ export async function recordPayment(fd: FormData) {
 }
 
 export async function deletePayment(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const p = await db.payment.delete({ where: { id: str(fd, "id") } });
   await refreshPaymentStatus(p.invoiceId);
@@ -96,6 +101,7 @@ export async function deletePayment(fd: FormData) {
 }
 
 export async function deleteInvoice(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const inv = await db.invoice.delete({ where: { id: str(fd, "id") } });
   revalidatePath("/invoices");

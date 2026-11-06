@@ -49,10 +49,32 @@ Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`, or put `AUTH_DISABLED
    - `APP_TIMEZONE`: `Africa/Johannesburg`.
 4. Click **Deploy**. The first build fails because there is no database yet; that is expected.
 5. In the project, open **Storage → Create Database → Neon (Serverless Postgres)**, accept the defaults and connect it to the project. This adds `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` and similar variables, which the app picks up automatically (you do not need to copy them into `DATABASE_URL`).
-6. **Deployments → ⋯ on the latest → Redeploy.** When it is green, open the site and sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+6. **Deployments → ⋯ on the latest → Redeploy.** When it is green, open the site and sign in with company code `kudu` and `ADMIN_EMAIL` / `ADMIN_PASSWORD`. The same email and password open the super-admin area at `/platform/login` (or set `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` to use a different login there).
 7. Add staff in **Settings → Users**. Then fill in company details, banking, PCO number and signature, products and warranty terms in **Settings**.
 
 Sign-in uses email and password. Google is optional: setting `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` adds "Sign in with Google" and enables Calendar sync.
+
+## Companies (multi-company)
+
+One installation serves many companies. **Each company has its own database**: its own logo, settings, users, products, customers, quotations, job cards, invoices and calendar. Nothing is shared between companies.
+
+| Piece | Where it lives |
+| --- | --- |
+| Platform registry: the list of companies, where each one's database is, and the super-admins | Schema `platform` of the main database (`prisma/platform/schema.prisma`) |
+| The original Kudu data | The main database (schema `public`), registered as company code `kudu` |
+| Every other company | Its own database, `company_<code>`, created on the same Neon server, or an external database (e.g. its own Neon project) whose connection string is stored encrypted |
+
+**Signing in.** Company users go to `/login` and type their **company code**, email and password. A link like `/login?company=acme` fills the code in, and the browser remembers it. Super-admins sign in at `/platform/login`.
+
+**Super-admins** create companies at `/platform`: name, company code, optional logo and the first admin's email and password. The app creates the database, applies all migrations, seeds settings and the products list, and creates that admin. Super-admins can also rename a company, change its code, switch its access off (its data is kept), and add users or reset passwords. They cannot see a company's customers or documents. While no super-admin exists, `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` (or, if not set, `ADMIN_EMAIL` / `ADMIN_PASSWORD`) create the first one at `/platform/login`.
+
+**Logos.** Each company uploads its logo in **Settings → Company**. It shows in the menu bar and prints on quotations, job cards and invoices. Until one is uploaded, the Kudu company shows the Kudu logo and other companies show their name.
+
+**Deploys.** `npm run vercel-build` runs `scripts/migrate-all.mjs`, which migrates the platform registry, the main database and every company database. If any company fails to migrate, the build stops.
+
+**Keep `AUTH_SECRET` unchanged.** It also encrypts external company connection strings; changing it makes those unreadable.
+
+Not built yet: deleting a company (switch access off instead; dropping a database cannot be undone), and per-company subdomains.
 
 ## Google sign-in and Calendar sync
 

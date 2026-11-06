@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate, money, toDateInput } from "@/lib/format";
 import { deleteInvoice, deletePayment, recordPayment, setInvoiceStatus } from "@/app/actions/invoices";
@@ -18,6 +18,7 @@ export default async function InvoicePage({
   searchParams: Promise<{ msg?: string; err?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const { id } = await params;
   const { msg, err } = await searchParams;
   const [inv, settings] = await Promise.all([

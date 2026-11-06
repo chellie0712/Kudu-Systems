@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, fmtDate, fmtDateTime, money } from "@/lib/format";
 import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 
 export default async function Dashboard() {
+  const db = await tenantDb();
   const user = await requireUser();
   const settings = await getSettings();
   const sym = settings.currencySymbol;

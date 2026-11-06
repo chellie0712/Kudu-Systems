@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { JobCardStatus } from "@prisma/client";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { Flash, PageHeader } from "@/components/ui";
 import { JobCardTable } from "@/components/DocTables";
 import { StatusFilter } from "@/components/StatusFilter";
@@ -9,6 +9,7 @@ import { StatusFilter } from "@/components/StatusFilter";
 export const metadata = { title: "Job Cards" };
 
 export default async function JobCardsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; msg?: string }> }) {
+  const db = await tenantDb();
   await requireUser();
   const { status, q = "", msg } = await searchParams;
   const rows = await db.jobCard.findMany({

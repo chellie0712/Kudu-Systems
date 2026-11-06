@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { JobCardStatus } from "@prisma/client";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { optDate, parseJson, str } from "@/lib/form";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
@@ -13,6 +13,7 @@ import type { PhotoRef } from "@/components/JobCardEditors";
 
 /** Keep one calendar event per scheduled job card, mirrored to Google. */
 async function syncJobCardEvent(jobCardId: string): Promise<string | null> {
+  const db = await tenantDb();
   const jc = await db.jobCard.findUniqueOrThrow({ where: { id: jobCardId }, include: { customer: true } });
   const existing = await db.calendarEvent.findFirst({ where: { jobCardId } });
 
@@ -47,6 +48,7 @@ async function syncJobCardEvent(jobCardId: string): Promise<string | null> {
 }
 
 export async function saveJobCard(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const photos = parseJson<PhotoRef[]>(fd, "photos", []).filter((p) => p && typeof p.id === "string");
@@ -118,6 +120,7 @@ export async function saveJobCard(fd: FormData) {
 }
 
 export async function setJobCardStatus(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const status = str(fd, "status") as JobCardStatus;
@@ -128,6 +131,7 @@ export async function setJobCardStatus(fd: FormData) {
 }
 
 export async function deleteJobCard(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const events = await db.calendarEvent.findMany({ where: { jobCardId: id } });
@@ -142,6 +146,7 @@ export async function deleteJobCard(fd: FormData) {
 
 /** Invoice from a job card: copies the linked quotation's lines when there is one. */
 export async function createInvoiceFromJobCard(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const settings = await getSettings();
   const jc = await db.jobCard.findUniqueOrThrow({

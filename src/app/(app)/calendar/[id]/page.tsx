@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { deleteEvent } from "@/app/actions/calendar";
 import { Flash, PageHeader } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
 export default async function EventPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ msg?: string; err?: string }> }) {
+  const db = await tenantDb();
   await requireUser();
   const { id } = await params;
   const { msg, err } = await searchParams;

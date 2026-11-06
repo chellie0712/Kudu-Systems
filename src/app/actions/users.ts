@@ -3,12 +3,13 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
 
 const MIN_PASSWORD = 10;
 
 export async function addUser(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const email = str(fd, "email").toLowerCase();
   const name = str(fd, "name");
@@ -24,6 +25,7 @@ export async function addUser(fd: FormData) {
 }
 
 export async function resetPassword(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const password = str(fd, "password");
   if (password.length < MIN_PASSWORD) redirect(`/settings?err=Password+must+be+at+least+${MIN_PASSWORD}+characters#users`);
@@ -32,6 +34,7 @@ export async function resetPassword(fd: FormData) {
 }
 
 export async function setUserDisabled(fd: FormData) {
+  const db = await tenantDb();
   const me = await requireUser();
   const id = str(fd, "id");
   if (id === me.id) redirect("/settings?err=You+cannot+disable+your+own+account#users");
