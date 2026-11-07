@@ -2,6 +2,7 @@ import Link from "next/link";
 import { InvoiceStatus } from "@prisma/client";
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
+import { docBranchWhere } from "@/lib/branch";
 import { getSettings } from "@/lib/settings";
 import { money } from "@/lib/format";
 import { Flash, PageHeader } from "@/components/ui";
@@ -19,6 +20,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   const awaiting = status === "AWAITING_APPROVAL";
   const rows = await db.invoice.findMany({
     where: {
+      ...(await docBranchWhere()),
       ...(overdue
         ? { status: { in: [InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID] }, dueDate: { lt: new Date() } }
         : awaiting

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/auth";
 import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
+import { currentBranchId } from "@/lib/branch";
 import { getSettings } from "@/lib/settings";
 import { dayKey, fmtTime, fromLocalInput } from "@/lib/format";
 import { googleConfigured } from "@/lib/google";
@@ -34,6 +35,7 @@ export default async function CalendarPage({
   const rangeStart = fromLocalInput(days[0])!;
   const rangeEnd = fromLocalInput(new Date(Date.UTC(y, m - 1, 1 - lead + 42)).toISOString().slice(0, 10))!;
 
+  const branchId = await currentBranchId();
   const [events, customers, settings] = await Promise.all([
     db.calendarEvent.findMany({
       where: {
@@ -42,11 +44,13 @@ export default async function CalendarPage({
         ...(sp.customerId ? { customerId: sp.customerId } : {}),
         // Technicians only see the jobs assigned to them.
         ...(all ? {} : { jobCard: { technicianId: user.id } }),
+        // Staff see the chosen branch's customers, plus events not linked to a customer.
+        ...(branchId ? { OR: [{ customerId: null }, { customer: { branchId } }] } : {}),
       },
       include: { customer: { select: { name: true } } },
       orderBy: { start: "asc" },
     }),
-    all ? db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    all ? db.customer.findMany({ where: { archived: false, ...(branchId ? { branchId } : {}) }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     getSettings(),
   ]);
 

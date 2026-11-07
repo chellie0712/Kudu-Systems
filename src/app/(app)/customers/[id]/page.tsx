@@ -41,6 +41,7 @@ export default async function CustomerPage({
       jobCards: { orderBy: { createdAt: "desc" }, include: { customStatus: { select: { name: true, colour: true } } } },
       invoices: { orderBy: { issueDate: "desc" } },
       events: { orderBy: { start: "asc" } },
+      branch: { select: { name: true } },
       assets: {
         orderBy: [{ active: "desc" }, { code: "asc" }, { name: "asc" }],
         include: { checks: { orderBy: { checkedAt: "desc" }, include: { jobCard: { select: { id: true, number: true } } } } },
@@ -74,7 +75,7 @@ export default async function CustomerPage({
             {customer.archived && <span className="rounded bg-charcoal-100 px-2 py-0.5 text-xs font-medium text-charcoal-500">Archived</span>}
           </span>
         }
-        subtitle={[customer.contactPerson, customer.phone, customer.email].filter(Boolean).join(" · ")}
+        subtitle={[customer.branch && `${customer.branch.name} branch`, customer.contactPerson, customer.phone, customer.email].filter(Boolean).join(" · ")}
         actions={
           <>
             <Link href={`/quotations/new?customerId=${id}`} className="btn-primary">+ Quotation</Link>

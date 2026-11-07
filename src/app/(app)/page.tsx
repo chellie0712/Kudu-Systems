@@ -8,6 +8,7 @@ import { getSettings } from "@/lib/settings";
 import { addDays, fmtDate, fmtDateTime, money } from "@/lib/format";
 import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 import { stockOverview } from "@/lib/inventory";
+import { currentBranchId, getBranches } from "@/lib/branch";
 
 export default async function Dashboard() {
   const db = await tenantDb();
@@ -16,21 +17,25 @@ export default async function Dashboard() {
   const settings = await getSettings();
   const sym = settings.currencySymbol;
   const now = new Date();
+  // Filter everything to the branch chosen in the header.
+  const branchId = await currentBranchId();
+  const ofBranch = branchId ? { customer: { branchId } } : {};
+  const branchName = branchId ? (await getBranches()).find((b) => b.id === branchId)?.name : null;
 
   const [customerCount, openQuotes, openJobs, unpaid, upcoming, recentQuotes, overdue] = await Promise.all([
-    db.customer.count({ where: { archived: false } }),
-    db.quotation.aggregate({ where: { status: { in: ["DRAFT", "SENT"] } }, _count: true, _sum: { total: true } }),
-    db.jobCard.count({ where: { status: { in: ["SCHEDULED", "IN_PROGRESS"] } } }),
-    db.invoice.findMany({ where: { status: { in: ["SENT", "PARTIALLY_PAID"] } }, select: { total: true, amountPaid: true, dueDate: true } }),
+    db.customer.count({ where: { archived: false, ...(branchId ? { branchId } : {}) } }),
+    db.quotation.aggregate({ where: { status: { in: ["DRAFT", "SENT"] }, ...ofBranch }, _count: true, _sum: { total: true } }),
+    db.jobCard.count({ where: { status: { in: ["SCHEDULED", "IN_PROGRESS"] }, ...ofBranch } }),
+    db.invoice.findMany({ where: { status: { in: ["SENT", "PARTIALLY_PAID"] }, ...ofBranch }, select: { total: true, amountPaid: true, dueDate: true } }),
     db.calendarEvent.findMany({
-      where: { end: { gte: now }, start: { lte: addDays(now, 14) } },
+      where: { end: { gte: now }, start: { lte: addDays(now, 14) }, ...(branchId ? { OR: [{ customerId: null }, { customer: { branchId } }] } : {}) },
       include: { customer: { select: { id: true, name: true } } },
       orderBy: { start: "asc" },
       take: 10,
     }),
-    db.quotation.findMany({ include: { customer: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
+    db.quotation.findMany({ where: ofBranch, include: { customer: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
     db.invoice.findMany({
-      where: { status: { in: ["SENT", "PARTIALLY_PAID"] }, dueDate: { lt: now } },
+      where: { status: { in: ["SENT", "PARTIALLY_PAID"] }, dueDate: { lt: now }, ...ofBranch },
       include: { customer: { select: { name: true } } },
       orderBy: { dueDate: "asc" },
       take: 6,
@@ -41,7 +46,7 @@ export default async function Dashboard() {
 
   const awaitingApproval =
     settings.invoiceApproval && can(user.role, "invoices.approve")
-      ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" } } })
+      ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" }, ...ofBranch } })
       : 0;
   const lowStock = can(user.role, "inventory.view") ? (await stockOverview(db)).filter((i) => i.low) : [];
   const stats = [
@@ -55,7 +60,7 @@ export default async function Dashboard() {
     <div>
       <PageHeader
         title={`Welcome, ${user.name.split(" ")[0]}`}
-        subtitle={fmtDate(now)}
+        subtitle={[fmtDate(now), branchName && `${branchName} branch`].filter(Boolean).join(" · ")}
         actions={
           <>
             <Link href="/customers/new" className="btn-outline">+ Customer</Link>

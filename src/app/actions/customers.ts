@@ -4,8 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { CustomerType } from "@prisma/client";
 import { requirePermission } from "@/auth";
-import { tenantDb } from "@/lib/db";
+import { tenantDb, type TenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
+
+async function validBranch(db: TenantDb, id: string): Promise<string | null> {
+  if (!id) return null;
+  return (await db.branch.findUnique({ where: { id }, select: { id: true } }))?.id ?? null;
+}
 
 export async function saveCustomer(fd: FormData) {
   const db = await tenantDb();
@@ -23,6 +28,8 @@ export async function saveCustomer(fd: FormData) {
     billingAddress: str(fd, "billingAddress"),
     siteAddress: str(fd, "siteAddress"),
     notes: str(fd, "notes"),
+    // Only when the form shows the branch field (i.e. branches exist).
+    ...(fd.has("branchId") ? { branchId: (await validBranch(db, str(fd, "branchId"))) } : {}),
   };
   if (!data.name) throw new Error("Customer name is required");
   const customer = id

@@ -3,11 +3,15 @@ import { Nav } from "@/components/Nav";
 import { authDisabled, requireUser, signOut } from "@/auth";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { getSettings } from "@/lib/settings";
-import { ROLE_LABELS } from "@/lib/permissions";
+import { ROLE_LABELS, can } from "@/lib/permissions";
+import { currentBranchId, getBranches } from "@/lib/branch";
+import { BranchSwitcher } from "@/components/BranchSwitcher";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const settings = await getSettings();
+  const staff = can(user.role, "customers.view");
+  const [branches, branchId] = staff ? await Promise.all([getBranches(), currentBranchId()]) : [[], null];
   return (
     <div className="flex min-h-screen flex-col">
       <header className="no-print flex h-20 items-center justify-between border-b-2 border-kudu-600 bg-white px-4 md:px-6">
@@ -15,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <CompanyLogo logo={settings.logo} name={settings.companyName} className="h-16 w-auto" />
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          {branches.length > 0 && <BranchSwitcher branches={branches.map((b) => ({ id: b.id, name: b.name }))} current={branchId} />}
           {authDisabled && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Local demo mode</span>
           )}

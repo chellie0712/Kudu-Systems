@@ -34,6 +34,8 @@ model User {
   labourRate    Int? // cents per hour excl. VAT; overrides Settings.labourRate when set
   timeEntries   TimeEntry[]
   vans          StockLocation[] // vans this user drives
+  branchId      String? // home branch: the branch shown when they sign in
+  branch        Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
@@ -162,6 +164,10 @@ model Customer {
   invoices        Invoice[]
   events          CalendarEvent[]
   assets          CustomerAsset[]
+  branchId        String? // the branch that looks after this customer; its documents follow it
+  branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([branchId])
 }
 
 // ---------- Quotations ----------
@@ -545,4 +551,20 @@ model AssetCheck {
 
   @@unique([assetId, jobCardId])
   @@index([jobCardId])
+}
+
+// ---------- Branches ----------
+
+/** An office of the company. Customers belong to a branch; lists and the dashboard can be filtered by it. */
+model Branch {
+  id        String     @id @default(cuid())
+  name      String
+  address   String     @default("")
+  phone     String     @default("")
+  email     String     @default("")
+  active    Boolean    @default(true)
+  sortOrder Int        @default(0)
+  customers Customer[]
+  users     User[]
+  createdAt DateTime   @default(now())
 }

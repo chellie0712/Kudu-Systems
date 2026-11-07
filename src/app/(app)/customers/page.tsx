@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
+import { customerBranchWhere } from "@/lib/branch";
 import { Empty, Flash, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Customers" };
@@ -17,6 +18,7 @@ export default async function CustomersPage({
   const customers = await db.customer.findMany({
     where: {
       archived: showArchived,
+      ...(await customerBranchWhere()),
       ...(q
         ? {
             OR: ["name", "contactPerson", "email", "phone", "siteAddress"].map((f) => ({
@@ -28,6 +30,7 @@ export default async function CustomersPage({
     orderBy: { name: "asc" },
     include: {
       _count: { select: { quotations: true, jobCards: true, invoices: true } },
+      branch: { select: { name: true } },
       invoices: { where: { status: { in: ["SENT", "PARTIALLY_PAID"] } }, select: { total: true, amountPaid: true } },
     },
   });
@@ -71,7 +74,7 @@ export default async function CustomersPage({
                     <Link href={`/customers/${c.id}`} className="font-semibold text-charcoal-800 hover:text-kudu-600">
                       {c.name}
                     </Link>
-                    <div className="text-xs text-charcoal-500">{c.type === "BUSINESS" ? "Business" : "Individual"}</div>
+                    <div className="text-xs text-charcoal-500">{[c.type === "BUSINESS" ? "Business" : "Individual", c.branch?.name].filter(Boolean).join(" · ")}</div>
                   </td>
                   <td>{c.contactPerson}</td>
                   <td>{c.phone}</td>

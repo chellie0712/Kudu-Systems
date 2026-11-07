@@ -27,7 +27,7 @@ export default async function InvoicePage({
     db.invoice.findUnique({
       where: { id },
       include: {
-        customer: true,
+        customer: { include: { branch: true } },
         items: { orderBy: { sortOrder: "asc" } },
         payments: { orderBy: { date: "asc" } },
         quotation: { select: { id: true, number: true } },
@@ -138,6 +138,7 @@ export default async function InvoicePage({
         <article className="print-sheet card w-full max-w-4xl space-y-6 p-8">
           <DocHeader
             settings={settings}
+            branch={inv.customer.branch}
             docType={settings.vatNumber ? "Tax Invoice" : "Invoice"}
             number={inv.number}
             meta={[

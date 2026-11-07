@@ -2,7 +2,15 @@ import type { Customer } from "@prisma/client";
 import { saveCustomer } from "@/app/actions/customers";
 import { Field, SectionTitle } from "./ui";
 
-export function CustomerForm({ customer }: { customer?: Customer }) {
+export function CustomerForm({
+  customer,
+  branches = [],
+  defaultBranchId,
+}: {
+  customer?: Customer;
+  branches?: { id: string; name: string }[];
+  defaultBranchId?: string | null;
+}) {
   const c = customer;
   return (
     <form action={saveCustomer} className="card max-w-4xl space-y-6 p-6">
@@ -37,6 +45,14 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
           <Field label="Company registration no.">
             <input name="regNumber" className="input" defaultValue={c?.regNumber} />
           </Field>
+          {branches.length > 0 && (
+            <Field label="Branch">
+              <select name="branchId" className="input" defaultValue={(c ? c.branchId : defaultBranchId) ?? ""}>
+                <option value="">No branch</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </Field>
+          )}
         </div>
       </section>
       <section>

@@ -187,7 +187,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async (req) => {
   return buildConfig(googleTenant);
 });
 
-export type AppUser = { id: string; name: string; email: string; image?: string | null; role: Role };
+export type AppUser = { id: string; name: string; email: string; image?: string | null; role: Role; branchId?: string | null };
 
 /** Local demo mode: only honoured outside production. Uses the main company. */
 export const authDisabled = process.env.AUTH_DISABLED === "true" && process.env.NODE_ENV !== "production";
@@ -217,7 +217,7 @@ export const getUser = cache(async (): Promise<AppUser | null> => {
   // JWT sessions outlive changes in the database, so re-check the account on each request.
   const user = await clientForCompany(company).user.findUnique({ where: { id: session.user.id } });
   if (!user || user.disabled) return null;
-  return { id: user.id, name: user.name ?? user.email ?? "", email: user.email ?? "", image: user.image, role: user.role };
+  return { id: user.id, name: user.name ?? user.email ?? "", email: user.email ?? "", image: user.image, role: user.role, branchId: user.branchId };
 });
 
 /** Use at the top of every page and server action. */

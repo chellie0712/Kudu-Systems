@@ -30,7 +30,7 @@ export default async function QuotationPage({
     db.quotation.findUnique({
       where: { id },
       include: {
-        customer: true,
+        customer: { include: { branch: true } },
         items: { orderBy: { sortOrder: "asc" } },
         jobCards: { select: { id: true, number: true, status: true } },
         invoices: { select: { id: true, number: true, status: true } },
@@ -91,6 +91,7 @@ export default async function QuotationPage({
       <article className="print-sheet card mx-auto max-w-4xl space-y-6 p-8">
         <DocHeader
           settings={settings}
+          branch={q.customer.branch}
           docType="Quotation"
           number={q.number}
           meta={[
