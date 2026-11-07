@@ -161,6 +161,7 @@ model Customer {
   jobCards        JobCard[]
   invoices        Invoice[]
   events          CalendarEvent[]
+  assets          CustomerAsset[]
 }
 
 // ---------- Quotations ----------
@@ -261,6 +262,7 @@ model JobCard {
   checklists            JobCardChecklist[]
   timeEntries           TimeEntry[]
   stockMovements        StockMovement[]
+  assetChecks           AssetCheck[]
   invoices              Invoice[]
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())
@@ -506,4 +508,41 @@ model CalendarEvent {
   googleUpdatedAt  DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+// ---------- Customer assets ----------
+
+/** Equipment at a customer's site that is serviced on visits, e.g. bait stations, fly units, traps. */
+model CustomerAsset {
+  id            String       @id @default(cuid())
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code          String       @default("") // tag or station number, e.g. BS-01
+  name          String // e.g. Bait station, Fly unit, Rodent trap
+  location      String       @default("") // where on site
+  serialNumber  String       @default("")
+  installedAt   DateTime?
+  serviceMonths Int          @default(0) // service interval; 0 = none
+  notes         String       @default("")
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  checks        AssetCheck[]
+
+  @@index([customerId])
+}
+
+/** What was found or done to an asset on a job card. */
+model AssetCheck {
+  id         String        @id @default(cuid())
+  assetId    String
+  asset      CustomerAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  jobCardId  String
+  jobCard    JobCard       @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  result     String // one of ASSET_RESULTS
+  note       String        @default("")
+  userName   String        @default("")
+  checkedAt  DateTime      @default(now())
+
+  @@unique([assetId, jobCardId])
+  @@index([jobCardId])
 }

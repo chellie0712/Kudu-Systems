@@ -11,6 +11,7 @@ import { Empty, Flash, PageHeader, SectionTitle } from "@/components/ui";
 import { InvoiceTable, JobCardTable, QuotationTable } from "@/components/DocTables";
 import { EventForm } from "@/components/EventForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { CustomerAssetsTab } from "@/components/Assets";
 
 const tabs = [
   { key: "info", label: "Information" },
@@ -18,6 +19,7 @@ const tabs = [
   { key: "jobcards", label: "Job Cards" },
   { key: "invoices", label: "Invoices" },
   { key: "calendar", label: "Calendar" },
+  { key: "assets", label: "Assets" },
 ];
 
 export default async function CustomerPage({
@@ -39,6 +41,10 @@ export default async function CustomerPage({
       jobCards: { orderBy: { createdAt: "desc" }, include: { customStatus: { select: { name: true, colour: true } } } },
       invoices: { orderBy: { issueDate: "desc" } },
       events: { orderBy: { start: "asc" } },
+      assets: {
+        orderBy: [{ active: "desc" }, { code: "asc" }, { name: "asc" }],
+        include: { checks: { orderBy: { checkedAt: "desc" }, include: { jobCard: { select: { id: true, number: true } } } } },
+      },
     },
   });
   if (!customer) notFound();
@@ -55,6 +61,7 @@ export default async function CustomerPage({
     jobcards: customer.jobCards.length,
     invoices: customer.invoices.length,
     calendar: upcoming.length,
+    assets: customer.assets.filter((a) => a.active).length,
   };
 
   return (
@@ -195,6 +202,9 @@ export default async function CustomerPage({
         <div className="card overflow-x-auto">
           <InvoiceTable rows={customer.invoices} symbol={sym} />
         </div>
+      )}
+      {tab === "assets" && (
+        <CustomerAssetsTab customerId={id} assets={customer.assets} canEdit={can(user.role, "assets.edit")} canDelete={can(user.role, "assets.delete")} />
       )}
       {tab === "calendar" && (
         <div className="grid gap-6 lg:grid-cols-3">

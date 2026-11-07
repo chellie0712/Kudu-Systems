@@ -52,6 +52,9 @@ const RULES = {
   "inventory.delete": ADMIN,
   "stock.use": ALL, // record stock used on a job card you can open (technicians: from their own van)
   "materials.bill": STAFF, // put used stock on an invoice
+  "assets.edit": STAFF, // add and edit customer assets (technicians may add one from their own job card)
+  "assets.check": ALL, // record asset checks on a job card you can open
+  "assets.delete": ADMIN,
   "calendar.viewAll": STAFF, // without it, only events of your own job cards
   "calendar.edit": STAFF,
   "settings.manage": ADMIN,
@@ -85,6 +88,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Manage everyone's time, bill labour", permission: "time.manageAll" },
   { label: "Inventory: items, receiving, transfers, counts", permission: "inventory.manage", note: { TECHNICIAN: "Own van, view" } },
   { label: "Record stock used on jobs", permission: "stock.use", note: { TECHNICIAN: "Own jobs, own van" } },
+  { label: "Customer assets", permission: "assets.edit", note: { TECHNICIAN: "Check and add on own jobs" } },
   { label: "Invoices and payments", permission: "invoices.edit" },
   { label: "Approve invoices", permission: "invoices.approve" },
   { label: "See prices and totals", permission: "dashboard.money" },
