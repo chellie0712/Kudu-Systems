@@ -12,6 +12,7 @@ import { Flash, NumberedSection, PageHeader } from "@/components/ui";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { TimeSection } from "@/components/TimeSection";
 import { StockSection } from "@/components/StockSection";
+import { AssetChecksPrint, JobAssetsSection } from "@/components/Assets";
 import { CUSTOM_PREFIX } from "@/lib/jobStatus";
 import { parseItems } from "@/lib/checklists";
 import { PcoBlock } from "@/components/JobCardForm";
@@ -49,6 +50,7 @@ export default async function JobCardPage({
         invoices: { select: { id: true, number: true, status: true } },
         timeEntries: { orderBy: { start: "asc" }, include: { invoice: { select: { id: true, number: true } } } },
         events: { select: { googleEventId: true } },
+        assetChecks: { include: { asset: true }, orderBy: [{ asset: { code: "asc" } }, { asset: { name: "asc" } }] },
         stockMovements: {
           where: { kind: "USE" },
           orderBy: { createdAt: "asc" },
@@ -81,13 +83,14 @@ export default async function JobCardPage({
       }))
     : [];
   // Stock can be booked out of any location by the office, and only out of their own van by a technician.
-  const [stockLocations, stockItems] = await Promise.all([
+  const [stockLocations, stockItems, customerAssets] = await Promise.all([
     db.stockLocation.findMany({
       where: { active: true, ...(may("inventory.manage") ? {} : { type: "VAN", userId: user.id }) },
       select: { id: true, name: true },
       orderBy: [{ type: "asc" }, { name: "asc" }],
     }),
     db.stockItem.findMany({ where: { active: true }, select: { id: true, name: true, unit: true, levels: { select: { locationId: true, quantity: true } } }, orderBy: { name: "asc" } }),
+    db.customerAsset.findMany({ where: { customerId: j.customerId }, orderBy: [{ code: "asc" }, { name: "asc" }] }),
   ]);
   const checklists = j.checklists.map((l) => ({ ...l, items: parseItems(l.items) }));
   // Section numbers shift with the optional sections.
@@ -221,6 +224,12 @@ export default async function JobCardPage({
           </NumberedSection>
         )}
 
+        {j.assetChecks.length > 0 && (
+          <NumberedSection n={next()} title="SITE ASSETS CHECKED">
+            <AssetChecksPrint checks={j.assetChecks} />
+          </NumberedSection>
+        )}
+
         {j.photos.length > 0 && (
           <NumberedSection n={next()} title="PHOTOS">
             <div className="grid grid-cols-2 gap-3">
@@ -304,6 +313,8 @@ export default async function JobCardPage({
         settings={settings}
         hasDraftInvoice={j.invoices.some((i) => i.status === "DRAFT")}
       />
+
+      <JobAssetsSection jobCardId={j.id} assets={customerAssets} checks={j.assetChecks} />
 
       <StockSection
         jobCardId={j.id}
