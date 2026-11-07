@@ -127,7 +127,7 @@ export function SignaturePad({
 export type PhotoRef = { id: string; kind: "BEFORE" | "AFTER" | "EXTRA" };
 
 /** Downscale and JPEG-compress a camera photo so uploads stay small. */
-async function compress(file: File, maxDim = 1600, quality = 0.75): Promise<string> {
+export async function compress(file: File, maxDim = 1600, quality = 0.75): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");

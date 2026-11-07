@@ -3,6 +3,7 @@ import { requireUser, type AppUser } from "@/auth";
 import { can } from "@/lib/permissions";
 import type { TenantDb } from "@/lib/db";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
+import { OfflineAgent } from "@/components/OfflineAgent";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, dayKey, fmtDate, fmtDateTime, money } from "@/lib/format";
@@ -217,6 +218,7 @@ async function TechnicianHome({ user, db }: { user: AppUser; db: TenantDb }) {
           <div className="mt-1 text-2xl font-bold">{done}</div>
         </Link>
       </div>
+      <OfflineAgent />
       <SectionTitle>My open jobs</SectionTitle>
       {open.length === 0 ? (
         <div className="card p-5 text-sm text-charcoal-500">No open jobs are assigned to you.</div>
