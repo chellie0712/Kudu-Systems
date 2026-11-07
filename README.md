@@ -13,6 +13,7 @@ Customer management and job workflow for Kudu Systems: customer profiles with qu
 | **Inventory** | Stock items (unit, cost and sell price, reorder level), a warehouse and vans, receiving, transfers, stock counts, full movement history, low-stock warnings. Technicians see "My van" and book products used on their job cards out of their own van; the office adds them to the invoice. |
 | **Customer assets** | Equipment on a customer's site (bait stations, fly units, traps…) with code, location, serial number, install date and service interval. Technicians record a result for each asset on the job card; results print on the job card and build each asset's service history. |
 | **Queries** | Customer complaints, requests and callbacks with priority, assignee, due date, notes timeline and resolution; raise a job card from a query. |
+| **Reports** | Sales, VAT, payments, quote conversion, cashflow forecast, aged debtors, top customers, technician jobs and hours, materials used; CSV exports. |
 | **Branches** | Optional offices. Customers belong to a branch; a header switcher filters the lists, calendar and dashboard; documents print the branch's contact details. |
 | **Calendar** | Month view. Scheduled job cards appear automatically. Appointments can be linked to a customer and show on that customer's profile. Two-way Google Calendar sync. |
 | **Dashboard** | Open quotes, open job cards, outstanding and overdue amounts, next 14 days. |
@@ -140,6 +141,16 @@ Off by default. Switch it on in **Settings → Invoice approval**, optionally on
 - **Create job card** raises a job card for the customer (e.g. a re-service) with the query in its scope, and links the two.
 - Customers have a **Queries** tab, job cards show their queries with a "+ Log query" link, and the dashboard shows open, overdue and your queries. Queries follow the branch switcher.
 - Only admins can delete a query.
+
+## Reports and cashflow
+
+**Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.
+
+- **Totals**: invoiced excl. VAT, VAT on invoices (output VAT), payments received, quote conversion (accepted ÷ accepted + declined + expired). Invoices count by issue date; drafts and cancelled invoices are left out.
+- **Per month**: invoiced and received as two charts on the same scale (hover a column for the exact amount, or "Show as table").
+- **Cashflow** (as of today, not limited to the period): unpaid balances of sent invoices by when they are due (overdue, 7 days, 8–30, 31–60, later) and **aged debtors** per customer (not yet due, 1–30, 31–60, 61–90, 90+ days overdue).
+- **Top customers** by invoiced amount, **technicians and staff** (jobs completed by job date, time recorded) and **materials used** on jobs (quantity, at cost, at sell price, and how much has been billed).
+- **CSV downloads** of the invoices and payments in the period, for your accountant or spreadsheet.
 
 ## Branches
 

@@ -58,6 +58,7 @@ const RULES = {
   "queries.view": STAFF, // customer queries, complaints and requests
   "queries.edit": STAFF, // log, update, assign, resolve
   "queries.delete": ADMIN,
+  "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
   "calendar.viewAll": STAFF, // without it, only events of your own job cards
   "calendar.edit": STAFF,
   "settings.manage": ADMIN,
@@ -93,6 +94,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Record stock used on jobs", permission: "stock.use", note: { TECHNICIAN: "Own jobs, own van" } },
   { label: "Customer assets", permission: "assets.edit", note: { TECHNICIAN: "Check and add on own jobs" } },
   { label: "Customer queries and complaints", permission: "queries.edit" },
+  { label: "Reports and cashflow", permission: "reports.view" },
   { label: "Invoices and payments", permission: "invoices.edit" },
   { label: "Approve invoices", permission: "invoices.approve" },
   { label: "See prices and totals", permission: "dashboard.money" },
