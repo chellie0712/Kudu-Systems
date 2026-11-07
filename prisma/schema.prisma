@@ -168,6 +168,7 @@ model Customer {
   events          CalendarEvent[]
   assets          CustomerAsset[]
   queries         Query[]
+  portalUsers     PortalUser[] // the customer's logins to the customer portal
   branchId        String? // the branch that looks after this customer; its documents follow it
   branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
@@ -204,6 +205,11 @@ model Quotation {
   items       QuotationItem[]
   jobCards    JobCard[]
   invoices    Invoice[]
+  // Answer given by the customer in the customer portal
+  response     String          @default("") // "ACCEPTED" or "DECLINED"
+  respondedAt  DateTime?
+  respondedBy  String          @default("")
+  responseNote String          @default("")
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -632,4 +638,24 @@ model QueryNote {
   createdAt DateTime @default(now())
 
   @@index([queryId, createdAt])
+}
+
+/// A customer's login to the customer portal. Kept apart from staff users so a portal
+/// session can never reach the staff side.
+model PortalUser {
+  id              String    @id @default(cuid())
+  customerId      String
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name            String    @default("")
+  email           String    @unique
+  passwordHash    String?
+  inviteToken     String?   @unique // one-time link to set a password; cleared once used
+  inviteExpiresAt DateTime?
+  disabled        Boolean   @default(false)
+  lastLoginAt     DateTime?
+  createdBy       String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([customerId])
 }

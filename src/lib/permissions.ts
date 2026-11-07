@@ -59,6 +59,7 @@ const RULES = {
   "queries.edit": STAFF, // log, update, assign, resolve
   "queries.delete": ADMIN,
   "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
+  "portal.manage": STAFF, // give customers access to the customer portal, send new links, switch access off
   "calendar.viewAll": STAFF, // without it, only events of your own job cards
   "calendar.edit": STAFF,
   "settings.manage": ADMIN,

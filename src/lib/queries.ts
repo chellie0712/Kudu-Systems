@@ -29,7 +29,7 @@ export const PRIORITY_COLOURS: Record<QueryPriority, string> = {
 
 /** Suggestions; any text is allowed. */
 export const QUERY_CATEGORIES = ["Complaint", "Re-service request", "Callback", "Billing / invoice", "Quotation request", "Booking change", "General enquiry"];
-export const QUERY_SOURCES = ["Phone", "Email", "WhatsApp", "Walk-in", "Website", "Technician"];
+export const QUERY_SOURCES = ["Phone", "Email", "WhatsApp", "Walk-in", "Website", "Technician", "Customer portal"];
 
 /** The due date is a day; a query is overdue once that whole day has passed. */
 export const overdueBefore = (now = new Date()) => new Date(now.getTime() - 24 * 60 * 60 * 1000);

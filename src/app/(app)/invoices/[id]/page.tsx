@@ -8,7 +8,7 @@ import { fmtDate, fmtDateTime, money, toDateInput } from "@/lib/format";
 import { approveInvoice, deleteInvoice, deletePayment, recordPayment, rejectInvoice, requestInvoiceApproval, setInvoiceStatus } from "@/app/actions/invoices";
 import { approvalState, maySend } from "@/lib/approval";
 import { Field, Flash, PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
-import { CustomerBlock, DocHeader, ItemsTable, TotalsBlock } from "@/components/Document";
+import { InvoiceSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 import { invoiceDisplayStatus } from "@/components/DocTables";
 
@@ -135,43 +135,7 @@ export default async function InvoicePage({
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <article className="print-sheet card w-full max-w-4xl space-y-6 p-8">
-          <DocHeader
-            settings={settings}
-            branch={inv.customer.branch}
-            docType={settings.vatNumber ? "Tax Invoice" : "Invoice"}
-            number={inv.number}
-            meta={[
-              ["Date", fmtDate(inv.issueDate)],
-              ["Due date", fmtDate(inv.dueDate)],
-              ...(inv.reference ? ([["Reference", inv.reference]] as [string, string][]) : []),
-            ]}
-          />
-          <CustomerBlock customer={inv.customer} />
-          <ItemsTable items={inv.items} symbol={sym} />
-          <TotalsBlock
-            doc={inv}
-            symbol={sym}
-            extraRows={inv.amountPaid > 0 ? [["Paid", inv.amountPaid], ["Balance due", balance, true]] : []}
-          />
-          {inv.notes && (
-            <div>
-              <div className="label">Notes</div>
-              <p className="whitespace-pre-line text-sm">{inv.notes}</p>
-            </div>
-          )}
-          {(settings.bankName || settings.bankAccountNumber) && (
-            <div className="rounded-md bg-charcoal-50 p-4 text-sm">
-              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-kudu-600">Banking details</div>
-              <div>Bank: {settings.bankName}</div>
-              <div>Account name: {settings.bankAccountName}</div>
-              <div>Account no.: {settings.bankAccountNumber}</div>
-              <div>Branch code: {settings.bankBranchCode}</div>
-              <div>Reference: {inv.number}</div>
-            </div>
-          )}
-          {inv.terms && <p className="whitespace-pre-line border-t border-charcoal-100 pt-4 text-xs text-charcoal-600">{inv.terms}</p>}
-        </article>
+        <InvoiceSheet inv={inv} settings={settings} />
 
         <aside className="no-print space-y-6">
           <div className="card p-5">
