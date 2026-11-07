@@ -12,6 +12,8 @@ import { addDays } from "@/lib/format";
 import { deleteGoogleEvent, pushEvent } from "@/lib/google";
 import type { PhotoRef } from "@/components/JobCardEditors";
 import { CUSTOM_PREFIX } from "@/lib/jobStatus";
+import { labourLines, unbilled } from "@/lib/labour";
+import { computeTotals } from "@/lib/totals";
 import { autoApplies, incompleteRequired, itemsFromTemplate, parseChecklists, parseItems, type ChecklistInput } from "@/lib/checklists";
 
 /** A status value from a form: a stage ("COMPLETED") or a custom status ("custom:<id>"). */
@@ -240,16 +242,28 @@ export async function deleteJobCard(fd: FormData) {
   redirect(`/customers/${jc.customerId}?tab=jobcards&msg=Job+card+deleted`);
 }
 
-/** Invoice from a job card: copies the linked quotation's lines when there is one. */
+/** Invoice from a job card: copies the linked quotation's lines when there is one, and adds unbilled labour. */
 export async function createInvoiceFromJobCard(fd: FormData) {
   const db = await tenantDb();
   await requirePermission("invoices.edit");
   const settings = await getSettings();
   const jc = await db.jobCard.findUniqueOrThrow({
     where: { id: str(fd, "id") },
-    include: { quotation: { include: { items: { orderBy: { sortOrder: "asc" } } } } },
+    include: { quotation: { include: { items: { orderBy: { sortOrder: "asc" } } } }, timeEntries: true },
   });
   const q = jc.quotation;
+  const open = unbilled(jc.timeEntries);
+  const users = await db.user.findMany({
+    where: { id: { in: open.map((e) => e.userId).filter((x): x is string => !!x) } },
+    select: { id: true, labourRate: true },
+  });
+  const labour = labourLines(open, users, settings);
+  const items = [
+    ...(q?.items ?? []).map((i) => ({ description: i.description, quantity: i.quantity, unit: i.unit, unitPrice: i.unitPrice })),
+    ...labour,
+  ];
+  const vatRate = q?.vatRate ?? settings.vatRate;
+  const discount = q?.discount ?? 0;
   const now = new Date();
   const inv = await db.invoice.create({
     data: {
@@ -261,24 +275,18 @@ export async function createInvoiceFromJobCard(fd: FormData) {
       dueDate: addDays(now, settings.invoiceDueDays),
       reference: [q?.number, jc.number].filter(Boolean).join(" / "),
       terms: settings.invoiceTerms,
-      vatRate: q?.vatRate ?? settings.vatRate,
-      discount: q?.discount ?? 0,
-      subtotal: q?.subtotal ?? 0,
-      vatAmount: q?.vatAmount ?? 0,
-      total: q?.total ?? 0,
-      items: q
-        ? {
-            create: q.items.map((i) => ({
-              description: i.description,
-              quantity: i.quantity,
-              unit: i.unit,
-              unitPrice: i.unitPrice,
-              sortOrder: i.sortOrder,
-            })),
-          }
-        : undefined,
+      vatRate,
+      discount,
+      ...computeTotals(items, vatRate, discount),
+      items: items.length ? { create: items.map((i, n) => ({ ...i, sortOrder: n })) } : undefined,
     },
   });
+  if (open.length) await db.timeEntry.updateMany({ where: { id: { in: open.map((e) => e.id) } }, data: { invoiceId: inv.id } });
   revalidatePath("/invoices");
-  redirect(q ? `/invoices/${inv.id}?msg=Invoice+created+from+${jc.number}` : `/invoices/${inv.id}/edit?msg=Invoice+created.+Add+the+line+items.`);
+  const labourNote = labour.length ? "+with+labour" : "";
+  redirect(
+    items.length
+      ? `/invoices/${inv.id}?msg=Invoice+created+from+${jc.number}${labourNote}`
+      : `/invoices/${inv.id}/edit?msg=Invoice+created.+Add+the+line+items.`,
+  );
 }

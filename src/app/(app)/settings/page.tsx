@@ -16,7 +16,8 @@ import {
 import { STAGES, STATUS_COLOURS, colourClass } from "@/lib/jobStatus";
 import { JOB_TYPES } from "@/lib/jobcard";
 import { SignaturePad } from "@/components/JobCardEditors";
-import { addUser, resetPassword, setUserDisabled, setUserRole } from "@/app/actions/users";
+import { addUser, resetPassword, setUserDisabled, setUserLabourRate, setUserRole } from "@/app/actions/users";
+import { centsToInput } from "@/lib/format";
 import { PERMISSION_TABLE, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, can } from "@/lib/permissions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { LogoInput } from "@/components/LogoInput";
@@ -130,6 +131,23 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </div>
           </div>
         </section>
+        <section id="labour">
+          <SectionTitle>Labour billing</SectionTitle>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Field label={`Hourly rate excl. VAT (${s.currencySymbol})`}>
+              <input name="labourRate" inputMode="decimal" className="input" defaultValue={centsToInput(s.labourRate)} />
+            </Field>
+            <Field label="Invoice line description">
+              <input name="labourDescription" className="input" defaultValue={s.labourDescription} />
+            </Field>
+            <Field label="Round time up to (minutes)">
+              <input name="labourRoundMinutes" type="number" min={0} max={60} className="input" defaultValue={s.labourRoundMinutes} />
+            </Field>
+          </div>
+          <p className="mt-2 text-xs text-charcoal-500">
+            Time recorded on job cards is added to the invoice at this rate. A person can have their own rate under Users &amp; roles. Rounding is per person per invoice; 0 bills exact minutes.
+          </p>
+        </section>
         <section id="google">
           <SectionTitle>Google Calendar</SectionTitle>
           <Field label="Calendar ID">
@@ -160,6 +178,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                   {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                 </select>
                 <button className="btn-outline py-1.5">Set role</button>
+              </form>
+              <form action={setUserLabourRate} className="flex gap-2">
+                <input type="hidden" name="id" value={u.id} />
+                <input
+                  name="labourRate"
+                  inputMode="decimal"
+                  className="input w-28 py-1.5"
+                  defaultValue={u.labourRate == null ? "" : centsToInput(u.labourRate)}
+                  placeholder={`${s.currencySymbol}/h`}
+                  aria-label={`Hourly rate of ${u.email}`}
+                  title="Own hourly labour rate; leave empty for the company rate"
+                />
+                <button className="btn-outline py-1.5">Set rate</button>
               </form>
               <form action={resetPassword} className="flex gap-2">
                 <input type="hidden" name="id" value={u.id} />

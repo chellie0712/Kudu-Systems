@@ -9,6 +9,7 @@ import { getSettings } from "@/lib/settings";
 import { parseLogo } from "@/lib/logo";
 import { JobCardStatus } from "@prisma/client";
 import { STATUS_COLOURS } from "@/lib/jobStatus";
+import { toCents } from "@/lib/format";
 
 export async function saveSettings(fd: FormData) {
   const db = await tenantDb();
@@ -18,7 +19,7 @@ export async function saveSettings(fd: FormData) {
     "companyName", "tagline", "email", "phone", "website", "address", "vatNumber", "regNumber",
     "currency", "currencySymbol", "bankName", "bankAccountName", "bankAccountNumber", "bankBranchCode",
     "quoteTerms", "invoiceTerms", "quotePrefix", "jobCardPrefix", "invoicePrefix", "googleCalendarId",
-    "jobCardTitle", "jobCardSubtitle", "pcoNumber", "warrantyCovers", "warrantyTerms",
+    "jobCardTitle", "jobCardSubtitle", "pcoNumber", "warrantyCovers", "warrantyTerms", "labourDescription",
   ] as const;
   const data: Record<string, string | number | null> = {};
   for (const f of textFields) data[f] = str(fd, f);
@@ -27,6 +28,8 @@ export async function saveSettings(fd: FormData) {
   data.invoiceDueDays = Math.round(num(fd, "invoiceDueDays", 30));
   data.warrantyMonths = Math.round(num(fd, "warrantyMonths", 3));
   data.pcoSignature = str(fd, "pcoSignature") || null;
+  data.labourRate = Math.max(0, toCents(str(fd, "labourRate")));
+  data.labourRoundMinutes = Math.max(0, Math.min(60, Math.round(num(fd, "labourRoundMinutes", 15))));
   try {
     data.logo = parseLogo(str(fd, "logo"));
   } catch (e) {
