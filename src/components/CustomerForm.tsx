@@ -1,15 +1,18 @@
 import type { Customer } from "@prisma/client";
 import { saveCustomer } from "@/app/actions/customers";
+import { LEAD_SOURCES } from "@/lib/marketing";
 import { Field, SectionTitle } from "./ui";
 
 export function CustomerForm({
   customer,
   branches = [],
   defaultBranchId,
+  campaigns = [],
 }: {
   customer?: Customer;
   branches?: { id: string; name: string }[];
   defaultBranchId?: string | null;
+  campaigns?: string[];
 }) {
   const c = customer;
   return (
@@ -54,6 +57,23 @@ export function CustomerForm({
             </Field>
           )}
         </div>
+      </section>
+      <section>
+        <SectionTitle>How they found you</SectionTitle>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Lead source">
+            <select name="leadSource" className="input" defaultValue={c?.leadSource ?? ""}>
+              <option value="">Not recorded</option>
+              {LEAD_SOURCES.map((x) => <option key={x} value={x}>{x}</option>)}
+              {c?.leadSource && !(LEAD_SOURCES as readonly string[]).includes(c.leadSource) && <option value={c.leadSource}>{c.leadSource}</option>}
+            </select>
+          </Field>
+          <Field label="Ad campaign (if from an ad)">
+            <input name="leadCampaign" list="ad-campaigns" className="input" defaultValue={c?.leadCampaign} placeholder="Pick or type the campaign name" />
+            <datalist id="ad-campaigns">{campaigns.map((x) => <option key={x} value={x} />)}</datalist>
+          </Field>
+        </div>
+        <p className="mt-2 text-xs text-charcoal-500">Used by the Marketing report to work out cost per lead and cost per won customer for each campaign.</p>
       </section>
       <section>
         <SectionTitle>Addresses</SectionTitle>

@@ -28,6 +28,8 @@ export async function saveCustomer(fd: FormData) {
     billingAddress: str(fd, "billingAddress"),
     siteAddress: str(fd, "siteAddress"),
     notes: str(fd, "notes"),
+    leadSource: str(fd, "leadSource").slice(0, 80),
+    leadCampaign: str(fd, "leadCampaign").slice(0, 200),
     // Only when the form shows the branch field (i.e. branches exist).
     ...(fd.has("branchId") ? { branchId: (await validBranch(db, str(fd, "branchId"))) } : {}),
   };

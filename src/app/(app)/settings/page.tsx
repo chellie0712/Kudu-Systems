@@ -23,6 +23,9 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { deleteBranch, saveBranch, setUserBranch } from "@/app/actions/branches";
 import { LogoInput } from "@/components/LogoInput";
 import { Field, Flash, PageHeader, SectionTitle } from "@/components/ui";
+import { googleAdsConfigured } from "@/lib/googleAds";
+import { disconnectGoogleAds, saveGoogleAdsAccount, syncGoogleAdsNow } from "@/app/actions/marketing";
+import { fmtDateTime } from "@/lib/format";
 
 export const metadata = { title: "Settings" };
 
@@ -428,6 +431,59 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <input name="regNumber" className="input w-36 flex-none" placeholder="Reg. no." />
           <button className="btn-primary py-1.5">+ Add product</button>
         </form>
+      </div>
+
+      <div id="google-ads" className="card mt-6 space-y-3 p-6">
+        <SectionTitle>Google Ads</SectionTitle>
+        <p className="text-sm text-charcoal-500">
+          Connect this company&apos;s own Google Ads account to pull ad spend, clicks and Google&apos;s conversions per campaign every day.
+          The Marketing report then shows cost per lead, cost per won customer and profit after advertising.
+        </p>
+        {!googleAdsConfigured() ? (
+          <p className="text-sm text-kudu-700">
+            Google Ads is not set up on the server yet. The platform owner sets <code>GOOGLE_ADS_CLIENT_ID</code> and <code>GOOGLE_ADS_CLIENT_SECRET</code> once (see the README).
+          </p>
+        ) : (
+          <>
+            {s.googleAdsRefreshToken ? (
+              <p className="text-sm">
+                Connected as <strong>{s.googleAdsAccountEmail || "a Google account"}</strong>.{" "}
+                {s.googleAdsLastSyncAt ? <>Last synced {fmtDateTime(s.googleAdsLastSyncAt)}.</> : <>Not synced yet.</>}
+                {s.googleAdsCurrency && s.googleAdsCurrency !== s.currency && (
+                  <span className="mt-1 block text-kudu-700">
+                    This Ads account bills in {s.googleAdsCurrency} but Kudu uses {s.currency}. Spend is shown as-is, not converted.
+                  </span>
+                )}
+              </p>
+            ) : (
+              <p className="text-sm">Not connected. Sign in with a Google account that has access to your Google Ads account.</p>
+            )}
+            {s.googleAdsLastError && <p className="rounded-md bg-kudu-50 p-2 text-sm text-kudu-800">Last sync problem: {s.googleAdsLastError}</p>}
+            <form action={saveGoogleAdsAccount} className="flex flex-wrap items-end gap-2">
+              <Field label="Google Ads account number (top right in Google Ads, like 123-456-7890)" className="min-w-72 flex-1">
+                <input name="googleAdsCustomerId" className="input" defaultValue={s.googleAdsCustomerId.replace(/^(\d{3})(\d{3})(\d{4})$/, "$1-$2-$3")} placeholder="123-456-7890" inputMode="numeric" />
+              </Field>
+              <button className="btn-outline">Save account number</button>
+            </form>
+            <div className="flex flex-wrap gap-2">
+              {/* A plain link: this leaves the app for Google's sign-in page. */}
+              <a href="/api/google-ads/connect" className={s.googleAdsRefreshToken ? "btn-outline" : "btn-primary"}>
+                {s.googleAdsRefreshToken ? "Connect a different Google account" : "Connect Google Ads"}
+              </a>
+              {s.googleAdsRefreshToken && (
+                <>
+                  <form action={syncGoogleAdsNow}>
+                    <input type="hidden" name="back" value="/settings#google-ads" />
+                    <button className="btn-dark">Sync now</button>
+                  </form>
+                  <form action={disconnectGoogleAds}>
+                    <ConfirmButton message="Disconnect Google Ads? Spend already loaded is kept." className="btn-danger">Disconnect</ConfirmButton>
+                  </form>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card mt-6 space-y-3 p-6">
