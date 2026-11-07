@@ -7,6 +7,7 @@ import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, fmtDate, fmtDateTime, money } from "@/lib/format";
 import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
+import { stockOverview } from "@/lib/inventory";
 
 export default async function Dashboard() {
   const db = await tenantDb();
@@ -42,6 +43,7 @@ export default async function Dashboard() {
     settings.invoiceApproval && can(user.role, "invoices.approve")
       ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" } } })
       : 0;
+  const lowStock = can(user.role, "inventory.view") ? (await stockOverview(db)).filter((i) => i.low) : [];
   const stats = [
     { label: "Active customers", value: String(customerCount), href: "/customers" },
     { label: "Open quotations", value: `${openQuotes._count} · ${money(openQuotes._sum.total ?? 0, sym)}`, href: "/quotations?status=SENT" },
@@ -64,6 +66,12 @@ export default async function Dashboard() {
       {awaitingApproval > 0 && (
         <Link href="/invoices?status=AWAITING_APPROVAL" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
           {awaitingApproval} invoice{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
+        </Link>
+      )}
+      {lowStock.length > 0 && (
+        <Link href="/inventory?show=low" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
+          Low stock: {lowStock.slice(0, 5).map((i) => i.name).join(", ")}
+          {lowStock.length > 5 && ` and ${lowStock.length - 5} more`} →
         </Link>
       )}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -33,6 +33,7 @@ model User {
   jobCards      JobCard[] // job cards assigned to this user as technician
   labourRate    Int? // cents per hour excl. VAT; overrides Settings.labourRate when set
   timeEntries   TimeEntry[]
+  vans          StockLocation[] // vans this user drives
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
@@ -259,6 +260,7 @@ model JobCard {
   photos                JobCardPhoto[]
   checklists            JobCardChecklist[]
   timeEntries           TimeEntry[]
+  stockMovements        StockMovement[]
   invoices              Invoice[]
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())
@@ -327,6 +329,80 @@ model TimeEntry {
   @@index([userId, end])
 }
 
+// ---------- Inventory ----------
+
+model StockItem {
+  id           String          @id @default(cuid())
+  name         String
+  sku          String          @default("")
+  unit         String          @default("each") // e.g. each, ml, L, g, kg
+  costPrice    Int             @default(0) // cents per unit excl. VAT
+  sellPrice    Int             @default(0) // cents per unit excl. VAT, used when billing materials
+  reorderLevel Float           @default(0) // warn when the total on hand drops to this
+  notes        String          @default("")
+  active       Boolean         @default(true)
+  levels       StockLevel[]
+  movements    StockMovement[]
+  createdAt    DateTime        @default(now())
+}
+
+enum StockLocationType {
+  WAREHOUSE
+  VAN
+}
+
+model StockLocation {
+  id       String            @id @default(cuid())
+  name     String
+  type     StockLocationType @default(WAREHOUSE)
+  userId   String? // the technician who drives this van
+  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  active   Boolean           @default(true)
+  levels   StockLevel[]
+  movesOut StockMovement[]   @relation("from")
+  movesIn  StockMovement[]   @relation("to")
+}
+
+model StockLevel {
+  itemId     String
+  item       StockItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  locationId String
+  location   StockLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  quantity   Float         @default(0)
+
+  @@id([itemId, locationId])
+}
+
+enum StockMovementKind {
+  RECEIVE // into a location (from a supplier)
+  TRANSFER // between locations, e.g. warehouse to van
+  USE // used on a job, out of a location
+  ADJUST // stock count correction
+}
+
+model StockMovement {
+  id             String            @id @default(cuid())
+  itemId         String
+  item           StockItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  kind           StockMovementKind
+  fromLocationId String?
+  fromLocation   StockLocation?    @relation("from", fields: [fromLocationId], references: [id], onDelete: SetNull)
+  toLocationId   String?
+  toLocation     StockLocation?    @relation("to", fields: [toLocationId], references: [id], onDelete: SetNull)
+  quantity       Float // always positive; ADJUST stores the change (+/-)
+  jobCardId      String?
+  jobCard        JobCard?          @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  invoiceId      String? // set once the material is billed
+  invoice        Invoice?          @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  note           String            @default("")
+  userId         String? // who recorded it (no relation, so removing a user keeps history)
+  userName       String            @default("")
+  createdAt      DateTime          @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([jobCardId])
+}
+
 enum PhotoKind {
   BEFORE
   AFTER
@@ -384,6 +460,7 @@ model Invoice {
   items       InvoiceItem[]
   payments    Payment[]
   timeEntries TimeEntry[] // labour billed on this invoice
+  stockMovements      StockMovement[] // materials billed on this invoice
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }

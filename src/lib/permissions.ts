@@ -47,6 +47,11 @@ const RULES = {
   "time.track": ALL, // own time on job cards you can open
   "time.manageAll": STAFF, // add, edit or delete anyone's time; see labour rates and value
   "labour.bill": STAFF, // put unbilled time on an invoice
+  "inventory.view": STAFF, // stock items, all locations, movement history, cost prices
+  "inventory.manage": STAFF, // add items, receive, transfer, adjust
+  "inventory.delete": ADMIN,
+  "stock.use": ALL, // record stock used on a job card you can open (technicians: from their own van)
+  "materials.bill": STAFF, // put used stock on an invoice
   "calendar.viewAll": STAFF, // without it, only events of your own job cards
   "calendar.edit": STAFF,
   "settings.manage": ADMIN,
@@ -78,6 +83,8 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Fill in and sign off job cards", permission: "jobcards.edit", note: { TECHNICIAN: "Own only" } },
   { label: "Record own time on jobs", permission: "time.track", note: { TECHNICIAN: "Own jobs" } },
   { label: "Manage everyone's time, bill labour", permission: "time.manageAll" },
+  { label: "Inventory: items, receiving, transfers, counts", permission: "inventory.manage", note: { TECHNICIAN: "Own van, view" } },
+  { label: "Record stock used on jobs", permission: "stock.use", note: { TECHNICIAN: "Own jobs, own van" } },
   { label: "Invoices and payments", permission: "invoices.edit" },
   { label: "Approve invoices", permission: "invoices.approve" },
   { label: "See prices and totals", permission: "dashboard.money" },
