@@ -11,6 +11,33 @@ import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
 import { deleteGoogleEvent, pushEvent } from "@/lib/google";
 import type { PhotoRef } from "@/components/JobCardEditors";
+import { CUSTOM_PREFIX } from "@/lib/jobStatus";
+import { autoApplies, incompleteRequired, itemsFromTemplate, parseChecklists, parseItems, type ChecklistInput } from "@/lib/checklists";
+
+/** A status value from a form: a stage ("COMPLETED") or a custom status ("custom:<id>"). */
+async function resolveStatus(raw: string): Promise<{ status: JobCardStatus; statusId: string | null } | null> {
+  if (raw.startsWith(CUSTOM_PREFIX)) {
+    const db = await tenantDb();
+    const custom = await db.jobStatus.findUnique({ where: { id: raw.slice(CUSTOM_PREFIX.length) } });
+    return custom ? { status: custom.stage, statusId: custom.id } : null;
+  }
+  return raw in JobCardStatus ? { status: raw as JobCardStatus, statusId: null } : null;
+}
+
+/** The job card's checklists, with every automatic checklist for its job type present. */
+async function withAutoChecklists(lists: ChecklistInput[], jobType: string): Promise<ChecklistInput[]> {
+  const db = await tenantDb();
+  const templates = await db.checklistTemplate.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  const known = new Set(templates.map((t) => t.id));
+  // Drop links to templates that no longer exist; the checklist itself is kept.
+  const result = lists.map((l) => ({ ...l, templateId: l.templateId && known.has(l.templateId) ? l.templateId : null }));
+  for (const t of templates) {
+    if (autoApplies(t, jobType) && !result.some((l) => l.templateId === t.id)) {
+      result.push({ templateId: t.id, name: t.name, requiredForCompletion: t.requiredForCompletion, items: itemsFromTemplate(t.items) });
+    }
+  }
+  return result;
+}
 
 /** Keep one calendar event per scheduled job card, mirrored to Google. */
 async function syncJobCardEvent(jobCardId: string): Promise<string | null> {
@@ -75,10 +102,10 @@ export async function saveJobCard(fd: FormData) {
   const photos = parseJson<PhotoRef[]>(fd, "photos", []).filter((p) => p && typeof p.id === "string");
   const customerSignature = str(fd, "customerSignature") || null;
 
-  let status = (str(fd, "status") as JobCardStatus) || JobCardStatus.SCHEDULED;
-  if (!(status in JobCardStatus)) status = JobCardStatus.SCHEDULED;
+  const keepStatus = { status: before?.status ?? JobCardStatus.SCHEDULED, statusId: before?.statusId ?? null };
+  let chosen = (await resolveStatus(str(fd, "status"))) ?? keepStatus;
   // Only the office can cancel a job.
-  if (!canAssign && status === JobCardStatus.CANCELLED) status = before?.status ?? JobCardStatus.SCHEDULED;
+  if (!canAssign && chosen.status === JobCardStatus.CANCELLED) chosen = keepStatus;
 
   // Who does the job, for whom and when: set by the office. Technicians cannot change these.
   const technicianId = str(fd, "technicianId") || null;
@@ -98,9 +125,18 @@ export async function saveJobCard(fd: FormData) {
       }
     : {};
 
+  const checklists = await withAutoChecklists(parseChecklists(str(fd, "checklists")), assignment.jobType ?? before?.jobType ?? "");
+  // A job can only be completed once its required checklists are fully ticked.
+  const unfinished = incompleteRequired(checklists);
+  let notice = "";
+  if (chosen.status === JobCardStatus.COMPLETED && unfinished.length) {
+    chosen = keepStatus.status === JobCardStatus.COMPLETED ? { status: JobCardStatus.IN_PROGRESS, statusId: null } : keepStatus;
+    notice = `Saved, but not marked completed: finish the ${unfinished.join(", ")} checklist first.`;
+  }
+
   const data = {
     ...assignment,
-    status,
+    ...chosen,
     jobDate: optDate(fd, "jobDate"),
     areaTreated: str(fd, "areaTreated"),
     workDescription: str(fd, "workDescription"),
@@ -148,10 +184,26 @@ export async function saveJobCard(fd: FormData) {
     db.jobCardPhoto.deleteMany({ where: { jobCardId: null, createdAt: { lt: new Date(Date.now() - 86400000) } } }),
   ]);
 
+  // Replace the job card's checklists with what was submitted.
+  await db.$transaction([
+    db.jobCardChecklist.deleteMany({ where: { jobCardId: jcId } }),
+    db.jobCardChecklist.createMany({
+      data: checklists.map((l, i) => ({
+        jobCardId: jcId,
+        templateId: l.templateId,
+        name: l.name,
+        requiredForCompletion: l.requiredForCompletion,
+        items: l.items,
+        sortOrder: i,
+      })),
+    }),
+  ]);
+
   const calendarError = await syncJobCardEvent(jcId);
   revalidatePath("/job-cards");
   revalidatePath("/calendar");
-  const msg = calendarError ? `&err=${encodeURIComponent("Saved, but Google Calendar was not updated: " + calendarError)}` : "";
+  const errors = [notice, calendarError && `Google Calendar was not updated: ${calendarError}`].filter(Boolean).join(" ");
+  const msg = errors ? `&err=${encodeURIComponent(errors)}` : "";
   redirect(`/job-cards/${jcId}?msg=Job+card+saved${msg}`);
 }
 
@@ -160,10 +212,15 @@ export async function setJobCardStatus(fd: FormData) {
   const user = await requirePermission("jobcards.edit");
   const id = str(fd, "id");
   await jobCardFor(user, id);
-  const status = str(fd, "status") as JobCardStatus;
-  if (!(status in JobCardStatus)) redirect(`/job-cards/${id}?err=Unknown+status`);
-  if (status === JobCardStatus.CANCELLED && !can(user.role, "jobcards.assign")) redirect(`/job-cards/${id}?err=Only+the+office+can+cancel+a+job`);
-  await db.jobCard.update({ where: { id }, data: { status } });
+  const chosen = await resolveStatus(str(fd, "status"));
+  if (!chosen) redirect(`/job-cards/${id}?err=Unknown+status`);
+  if (chosen.status === JobCardStatus.CANCELLED && !can(user.role, "jobcards.assign")) redirect(`/job-cards/${id}?err=Only+the+office+can+cancel+a+job`);
+  if (chosen.status === JobCardStatus.COMPLETED) {
+    const lists = await db.jobCardChecklist.findMany({ where: { jobCardId: id } });
+    const unfinished = incompleteRequired(lists.map((l) => ({ ...l, items: parseItems(l.items) })));
+    if (unfinished.length) redirect(`/job-cards/${id}?err=${encodeURIComponent(`Finish the ${unfinished.join(", ")} checklist before completing this job.`)}`);
+  }
+  await db.jobCard.update({ where: { id }, data: chosen });
   await syncJobCardEvent(id);
   revalidatePath(`/job-cards/${id}`);
   redirect(`/job-cards/${id}?msg=Status+updated`);

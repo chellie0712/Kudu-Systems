@@ -36,7 +36,7 @@ export default async function CustomerPage({
     where: { id },
     include: {
       quotations: { orderBy: { issueDate: "desc" } },
-      jobCards: { orderBy: { createdAt: "desc" } },
+      jobCards: { orderBy: { createdAt: "desc" }, include: { customStatus: { select: { name: true, colour: true } } } },
       invoices: { orderBy: { issueDate: "desc" } },
       events: { orderBy: { start: "asc" } },
     },

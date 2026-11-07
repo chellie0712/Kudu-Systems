@@ -7,6 +7,8 @@ import { tenantDb } from "@/lib/db";
 import { num, str } from "@/lib/form";
 import { getSettings } from "@/lib/settings";
 import { parseLogo } from "@/lib/logo";
+import { JobCardStatus } from "@prisma/client";
+import { STATUS_COLOURS } from "@/lib/jobStatus";
 
 export async function saveSettings(fd: FormData) {
   const db = await tenantDb();
@@ -83,4 +85,64 @@ export async function deleteProduct(fd: FormData) {
   // Job cards keep a text copy of each product, so deleting never changes past job cards.
   await db.product.delete({ where: { id: str(fd, "id") } });
   redirect("/settings?msg=Product+deleted#products");
+}
+
+// ---------- Custom job statuses ----------
+
+export async function saveJobStatus(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("settings.manage");
+  const id = str(fd, "id");
+  const stage = str(fd, "stage");
+  const colour = str(fd, "colour");
+  const data = {
+    name: str(fd, "name"),
+    stage: (stage in JobCardStatus ? stage : "IN_PROGRESS") as JobCardStatus,
+    colour: colour in STATUS_COLOURS ? colour : "slate",
+    active: id ? fd.get("active") === "on" : true,
+  };
+  if (!data.name) redirect("/settings?err=Status+name+is+required#statuses");
+  if (id) await db.jobStatus.update({ where: { id }, data });
+  else await db.jobStatus.create({ data: { ...data, sortOrder: await db.jobStatus.count() } });
+  redirect("/settings?msg=Job+status+saved#statuses");
+}
+
+export async function deleteJobStatus(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("settings.manage");
+  // Job cards using it fall back to showing their stage (the relation is SET NULL).
+  await db.jobStatus.delete({ where: { id: str(fd, "id") } });
+  redirect("/settings?msg=Job+status+deleted#statuses");
+}
+
+// ---------- Checklist templates ----------
+
+export async function saveChecklistTemplate(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("settings.manage");
+  const id = str(fd, "id");
+  const data = {
+    name: str(fd, "name"),
+    items: str(fd, "items")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .join("\n"),
+    autoAddAll: fd.get("autoAddAll") === "on",
+    jobType: str(fd, "jobType"),
+    requiredForCompletion: fd.get("requiredForCompletion") === "on",
+    active: id ? fd.get("active") === "on" : true,
+  };
+  if (!data.name || !data.items) redirect("/settings?err=A+checklist+needs+a+name+and+at+least+one+item#checklists");
+  if (id) await db.checklistTemplate.update({ where: { id }, data });
+  else await db.checklistTemplate.create({ data: { ...data, sortOrder: await db.checklistTemplate.count() } });
+  redirect("/settings?msg=Checklist+saved#checklists");
+}
+
+export async function deleteChecklistTemplate(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("settings.manage");
+  // Job cards keep their own copy of the checklist.
+  await db.checklistTemplate.delete({ where: { id: str(fd, "id") } });
+  redirect("/settings?msg=Checklist+deleted#checklists");
 }

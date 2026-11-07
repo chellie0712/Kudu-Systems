@@ -2,6 +2,7 @@ import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { assignees } from "@/lib/assignees";
+import { jobCardFormExtras } from "@/lib/jobCardForm";
 import { PageHeader } from "@/components/ui";
 import { JobCardForm } from "@/components/JobCardForm";
 
@@ -12,10 +13,11 @@ export default async function NewJobCardPage({ searchParams }: { searchParams: P
   await requirePermission("jobcards.create");
   const { customerId } = await searchParams;
   const settings = await getSettings();
-  const [customers, products, people] = await Promise.all([
+  const [customers, products, people, extras] = await Promise.all([
     db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.product.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     assignees(db),
+    jobCardFormExtras(db),
   ]);
   const c = customerId ? await db.customer.findUnique({ where: { id: customerId } }) : null;
   return (
@@ -29,6 +31,7 @@ export default async function NewJobCardPage({ searchParams }: { searchParams: P
         products={products}
         settings={settings}
         assignees={people}
+        {...extras}
         defaults={
           c
             ? {

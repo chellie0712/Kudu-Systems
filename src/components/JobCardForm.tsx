@@ -1,10 +1,13 @@
-import type { Customer, JobCard, JobCardPhoto, Product, Settings } from "@prisma/client";
+import type { Customer, JobCard, JobCardPhoto, JobStatus, Product, Settings } from "@prisma/client";
 import { saveJobCard } from "@/app/actions/jobCards";
 import { toDateInput, toDateTimeInput } from "@/lib/format";
 import { JOB_TYPES, MAX_EXTRA_PHOTOS, lines, productLabel } from "@/lib/jobcard";
 import { JobCardSubmit, PhotoPicker, SignaturePad, WarrantyDates } from "./JobCardEditors";
 import { Field, NumberedSection } from "./ui";
 import { TechnicianPicker, type Assignee } from "./TechnicianPicker";
+import { ChecklistEditor, type TemplateOption } from "./ChecklistEditor";
+import { CUSTOM_PREFIX, STAGES } from "@/lib/jobStatus";
+import type { ChecklistInput } from "@/lib/checklists";
 
 export type JobCardDefaults = Partial<
   Pick<JobCard, "customerId" | "siteAddress" | "siteContact" | "contactNumber" | "scopeOfWork" | "quotationId">
@@ -18,6 +21,9 @@ export function JobCardForm({
   defaults,
   assignees = [],
   canAssign = true,
+  statuses = [],
+  templates = [],
+  checklists = [],
 }: {
   jobCard?: JobCard & { photos: Pick<JobCardPhoto, "id" | "kind">[] };
   customers: Pick<Customer, "id" | "name">[];
@@ -28,6 +34,12 @@ export function JobCardForm({
   assignees?: Assignee[];
   /** False for technicians: who, for whom, when and what are set by the office and shown read-only. */
   canAssign?: boolean;
+  /** Active custom statuses, plus the job card's current one. */
+  statuses?: Pick<JobStatus, "id" | "name" | "stage">[];
+  /** Checklist templates that can be added; auto ones are added to new job cards. */
+  templates?: TemplateOption[];
+  /** The job card's checklists. */
+  checklists?: ChecklistInput[];
 }) {
   const j = jobCard;
   const lock = !canAssign;
@@ -61,11 +73,16 @@ export function JobCardForm({
             <input name="scheduledEnd" type="datetime-local" className="input" defaultValue={toDateTimeInput(j?.scheduledEnd)} disabled={lock} />
           </Field>
           <Field label="Status">
-            <select name="status" className="input" defaultValue={j?.status ?? "SCHEDULED"}>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="IN_PROGRESS">In progress</option>
-              <option value="COMPLETED">Completed</option>
-              {(canAssign || j?.status === "CANCELLED") && <option value="CANCELLED">Cancelled</option>}
+            <select name="status" className="input" defaultValue={j?.statusId ? `${CUSTOM_PREFIX}${j.statusId}` : (j?.status ?? "SCHEDULED")}>
+              {STAGES.filter((st) => canAssign || st.value !== "CANCELLED" || j?.status === "CANCELLED").map((st) => {
+                const customs = statuses.filter((c) => c.stage === st.value);
+                return (
+                  <optgroup key={st.value} label={st.label}>
+                    <option value={st.value} data-stage={st.value}>{st.label}</option>
+                    {customs.map((c) => <option key={c.id} value={`${CUSTOM_PREFIX}${c.id}`} data-stage={c.stage}>{c.name}</option>)}
+                  </optgroup>
+                );
+              })}
             </select>
           </Field>
           <Field label="Priority">
@@ -116,11 +133,15 @@ export function JobCardForm({
         </div>
       </NumberedSection>
 
-      <NumberedSection n={4} title="PHOTOS">
+      <NumberedSection n={4} title="CHECKLISTS">
+        <ChecklistEditor initial={checklists} templates={templates} />
+      </NumberedSection>
+
+      <NumberedSection n={5} title="PHOTOS">
         <PhotoPicker initial={(j?.photos ?? []).map((p) => ({ id: p.id, kind: p.kind }))} maxExtra={MAX_EXTRA_PHOTOS} />
       </NumberedSection>
 
-      <NumberedSection n={5} title="WARRANTY DETAILS">
+      <NumberedSection n={6} title="WARRANTY DETAILS">
         <div className="space-y-4">
           <Field label="Warranty no.">
             <input name="warrantyNo" className="input" defaultValue={j?.warrantyNo} placeholder="Defaults to the job no." />
@@ -166,13 +187,13 @@ export function JobCardForm({
         </div>
       </NumberedSection>
 
-      <NumberedSection n={6} title="WARRANTY TERMS & CONDITIONS">
+      <NumberedSection n={7} title="WARRANTY TERMS & CONDITIONS">
         <ul className="list-disc space-y-1.5 rounded-r-md border-l-4 border-kudu-600 bg-kudu-50 py-3 pr-3 pl-8 text-sm">
           {lines(settings.warrantyTerms).map((t) => <li key={t}>{t}</li>)}
         </ul>
       </NumberedSection>
 
-      <NumberedSection n={7} title="CLIENT SIGN-OFF">
+      <NumberedSection n={8} title="CLIENT SIGN-OFF">
         <div className="space-y-4">
           <label className="flex items-start gap-3 rounded-md border border-kudu-100 bg-kudu-50 p-3 text-sm">
             <input type="checkbox" name="clientConfirmed" defaultChecked={j?.clientConfirmed} className="mt-0.5 h-5 w-5 shrink-0 accent-kudu-600" />
