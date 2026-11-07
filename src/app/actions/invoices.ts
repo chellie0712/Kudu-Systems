@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { InvoiceStatus } from "@prisma/client";
 import { requirePermission } from "@/auth";
+import { approvalState, maySend } from "@/lib/approval";
 import { tenantDb } from "@/lib/db";
 import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
@@ -34,9 +35,25 @@ export async function saveInvoice(fd: FormData) {
   const discount = cents(fd, "discount");
   const totals = computeTotals(items, vatRate, discount);
   const issueDate = optDate(fd, "issueDate") ?? new Date();
+  const before = id ? await db.invoice.findUnique({ where: { id } }) : null;
+  let status = (str(fd, "status") as InvoiceStatus) || InvoiceStatus.DRAFT;
+  if (!(status in InvoiceStatus)) status = InvoiceStatus.DRAFT;
+  // A changed total needs approving again.
+  const keepApproval = before?.approvedAt && before.total === totals.total;
+  const approval = keepApproval ? {} : { approvedAt: null, approvedBy: "" };
+  const state = approvalState(
+    { total: totals.total, approvedAt: keepApproval ? before!.approvedAt : null, approvalRequestedAt: before?.approvalRequestedAt ?? null },
+    settings,
+  );
+  let notice = "";
+  if (status === InvoiceStatus.SENT && before?.status !== InvoiceStatus.SENT && !maySend(state)) {
+    status = before?.status ?? InvoiceStatus.DRAFT;
+    notice = "Saved, but not marked as sent: this invoice needs approval first.";
+  }
   const data = {
     customerId: str(fd, "customerId"),
-    status: (str(fd, "status") as InvoiceStatus) || InvoiceStatus.DRAFT,
+    status,
+    ...approval,
     issueDate,
     dueDate: optDate(fd, "dueDate") ?? addDays(issueDate, settings.invoiceDueDays),
     reference: str(fd, "reference"),
@@ -58,14 +75,21 @@ export async function saveInvoice(fd: FormData) {
     : await db.invoice.create({ data: { ...data, number: await nextNumber("invoice"), items: { create: itemRows } } });
   await refreshPaymentStatus(inv.id);
   revalidatePath("/invoices");
-  redirect(`/invoices/${inv.id}?msg=Invoice+saved`);
+  const approvalLost = before?.approvedAt && !keepApproval ? " The total changed, so it needs approving again." : "";
+  redirect(`/invoices/${inv.id}?msg=Invoice+saved${notice || approvalLost ? `&err=${encodeURIComponent((notice + approvalLost).trim())}` : ""}`);
 }
 
 export async function setInvoiceStatus(fd: FormData) {
   const db = await tenantDb();
   await requirePermission("invoices.edit");
   const id = str(fd, "id");
-  await db.invoice.update({ where: { id }, data: { status: str(fd, "status") as InvoiceStatus } });
+  const status = str(fd, "status") as InvoiceStatus;
+  if (!(status in InvoiceStatus)) redirect(`/invoices/${id}?err=Unknown+status`);
+  if (status === InvoiceStatus.SENT) {
+    const [inv, settings] = await Promise.all([db.invoice.findUniqueOrThrow({ where: { id } }), getSettings()]);
+    if (!maySend(approvalState(inv, settings))) redirect(`/invoices/${id}?err=${encodeURIComponent("This invoice needs approval before it can be sent.")}`);
+  }
+  await db.invoice.update({ where: { id }, data: { status } });
   if (str(fd, "status") !== InvoiceStatus.CANCELLED) await refreshPaymentStatus(id);
   revalidatePath(`/invoices/${id}`);
   redirect(`/invoices/${id}?msg=Status+updated`);
@@ -106,4 +130,36 @@ export async function deleteInvoice(fd: FormData) {
   const inv = await db.invoice.delete({ where: { id: str(fd, "id") } });
   revalidatePath("/invoices");
   redirect(`/customers/${inv.customerId}?tab=invoices&msg=Invoice+deleted`);
+}
+
+// ---------- Approval ----------
+
+export async function requestInvoiceApproval(fd: FormData) {
+  const db = await tenantDb();
+  const user = await requirePermission("invoices.edit");
+  const id = str(fd, "id");
+  await db.invoice.update({ where: { id }, data: { approvalRequestedAt: new Date(), approvalRequestedBy: user.name, approvalNote: "" } });
+  revalidatePath("/invoices");
+  redirect(`/invoices/${id}?msg=Sent+for+approval`);
+}
+
+export async function approveInvoice(fd: FormData) {
+  const db = await tenantDb();
+  const user = await requirePermission("invoices.approve");
+  const id = str(fd, "id");
+  await db.invoice.update({ where: { id }, data: { approvedAt: new Date(), approvedBy: user.name, approvalNote: "" } });
+  revalidatePath("/invoices");
+  redirect(`/invoices/${id}?msg=Invoice+approved`);
+}
+
+/** Sends the invoice back to whoever submitted it, with a reason. */
+export async function rejectInvoice(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("invoices.approve");
+  const id = str(fd, "id");
+  const note = str(fd, "note");
+  if (!note) redirect(`/invoices/${id}?err=${encodeURIComponent("Say why it is sent back, so it can be fixed.")}`);
+  await db.invoice.update({ where: { id }, data: { approvalRequestedAt: null, approvedAt: null, approvedBy: "", approvalNote: note } });
+  revalidatePath("/invoices");
+  redirect(`/invoices/${id}?msg=Invoice+sent+back`);
 }

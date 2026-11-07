@@ -38,6 +38,10 @@ export default async function Dashboard() {
   const outstanding = unpaid.reduce((s, i) => s + i.total - i.amountPaid, 0);
   const overdueTotal = unpaid.filter((i) => i.dueDate < now).reduce((s, i) => s + i.total - i.amountPaid, 0);
 
+  const awaitingApproval =
+    settings.invoiceApproval && can(user.role, "invoices.approve")
+      ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" } } })
+      : 0;
   const stats = [
     { label: "Active customers", value: String(customerCount), href: "/customers" },
     { label: "Open quotations", value: `${openQuotes._count} · ${money(openQuotes._sum.total ?? 0, sym)}`, href: "/quotations?status=SENT" },
@@ -57,6 +61,11 @@ export default async function Dashboard() {
           </>
         }
       />
+      {awaitingApproval > 0 && (
+        <Link href="/invoices?status=AWAITING_APPROVAL" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
+          {awaitingApproval} invoice{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
+        </Link>
+      )}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.label} href={s.href} className="card border-l-4 border-l-kudu-600 p-5 hover:shadow-md">

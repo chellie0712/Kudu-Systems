@@ -41,6 +41,7 @@ const RULES = {
   "invoices.view": STAFF,
   "invoices.edit": STAFF,
   "invoices.delete": ADMIN,
+  "invoices.approve": ADMIN, // approve invoices when Settings → Invoice approval is on
   "payments.record": STAFF,
   "payments.delete": ADMIN,
   "time.track": ALL, // own time on job cards you can open
@@ -78,6 +79,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Record own time on jobs", permission: "time.track", note: { TECHNICIAN: "Own jobs" } },
   { label: "Manage everyone's time, bill labour", permission: "time.manageAll" },
   { label: "Invoices and payments", permission: "invoices.edit" },
+  { label: "Approve invoices", permission: "invoices.approve" },
   { label: "See prices and totals", permission: "dashboard.money" },
   { label: "Calendar", permission: "calendar.edit", note: { TECHNICIAN: "View own jobs" } },
   { label: "Delete records", permission: "invoices.delete" },
