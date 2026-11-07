@@ -1,8 +1,8 @@
-import Image from "next/image";
+import { CompanyLogo } from "@/components/CompanyLogo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate, fmtDateTime, fmtTime } from "@/lib/format";
 import { lines } from "@/lib/jobcard";
@@ -28,6 +28,7 @@ export default async function JobCardPage({
   searchParams: Promise<{ msg?: string; err?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const { id } = await params;
   const { msg, err } = await searchParams;
   const [j, settings] = await Promise.all([
@@ -94,7 +95,7 @@ export default async function JobCardPage({
 
       <article className="print-sheet card mx-auto max-w-3xl space-y-3 p-6 sm:p-8">
         <header className="flex items-center justify-between gap-4 border-b-4 border-kudu-600 pb-4">
-          <Image src="/kudu-logo-sm.png" alt={settings.companyName} width={600} height={389} className="h-16 w-auto" />
+          <CompanyLogo logo={settings.logo} name={settings.companyName} className="h-16 w-auto" />
           <div className="text-right">
             <h1 className="text-xl font-extrabold tracking-wide text-kudu-700 uppercase">{settings.jobCardTitle}</h1>
             {settings.jobCardSubtitle && <p className="text-xs text-charcoal-500 italic">{settings.jobCardSubtitle}</p>}

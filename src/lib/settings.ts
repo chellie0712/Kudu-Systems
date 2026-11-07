@@ -1,7 +1,8 @@
-import { db } from "./db";
+import { tenantDb } from "./db";
 import { DEFAULT_PRODUCTS } from "./jobcard";
 
 export async function getSettings() {
+  const db = await tenantDb();
   const existing = await db.settings.findUnique({ where: { id: 1 } });
   if (existing) return existing;
   // First run: create settings and the starter product list. The lock stops two
@@ -21,6 +22,7 @@ type Kind = "quote" | "jobCard" | "invoice";
 
 /** Atomically reserve the next document number, e.g. QT-0007. */
 export async function nextNumber(kind: Kind): Promise<string> {
+  const db = await tenantDb();
   await getSettings();
   const field = kind === "quote" ? "nextQuoteNo" : kind === "jobCard" ? "nextJobCardNo" : "nextInvoiceNo";
   const s = await db.settings.update({ where: { id: 1 }, data: { [field]: { increment: 1 } } });

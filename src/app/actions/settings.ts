@@ -3,11 +3,13 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { authDisabled, requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { num, str } from "@/lib/form";
 import { getSettings } from "@/lib/settings";
+import { parseLogo } from "@/lib/logo";
 
 export async function saveSettings(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   await getSettings();
   const textFields = [
@@ -23,6 +25,11 @@ export async function saveSettings(fd: FormData) {
   data.invoiceDueDays = Math.round(num(fd, "invoiceDueDays", 30));
   data.warrantyMonths = Math.round(num(fd, "warrantyMonths", 3));
   data.pcoSignature = str(fd, "pcoSignature") || null;
+  try {
+    data.logo = parseLogo(str(fd, "logo"));
+  } catch (e) {
+    redirect(`/settings?err=${encodeURIComponent((e as Error).message)}`);
+  }
   const before = await getSettings();
   await db.settings.update({
     where: { id: 1 },
@@ -35,6 +42,7 @@ export async function saveSettings(fd: FormData) {
 
 /** Make the signed-in user's Google account the one the calendar sync runs as. */
 export async function useMyGoogleCalendar() {
+  const db = await tenantDb();
   const user = await requireUser();
   if (authDisabled) redirect("/settings?err=Sign+in+with+Google+first+(demo+mode+has+no+Google+account)");
   const account = await db.account.findFirst({ where: { userId: user.id, provider: "google" } });
@@ -46,12 +54,14 @@ export async function useMyGoogleCalendar() {
 }
 
 export async function disconnectGoogleCalendar() {
+  const db = await tenantDb();
   await requireUser();
   await db.settings.update({ where: { id: 1 }, data: { googleSyncUserId: null, googleSyncToken: null } });
   redirect("/settings?msg=Google+Calendar+sync+disconnected");
 }
 
 export async function saveProduct(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const data = {
@@ -68,6 +78,7 @@ export async function saveProduct(fd: FormData) {
 }
 
 export async function deleteProduct(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   // Job cards keep a text copy of each product, so deleting never changes past job cards.
   await db.product.delete({ where: { id: str(fd, "id") } });

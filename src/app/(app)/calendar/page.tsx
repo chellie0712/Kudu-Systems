@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { dayKey, fmtTime, fromLocalInput } from "@/lib/format";
 import { googleConfigured } from "@/lib/google";
@@ -18,6 +18,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ month?: string; customerId?: string; day?: string; msg?: string; err?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const sp = await searchParams;
   const todayKey = dayKey(new Date());
   const month = /^\d{4}-\d{2}$/.test(sp.month ?? "") ? sp.month! : todayKey.slice(0, 7);

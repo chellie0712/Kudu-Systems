@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { Flash, PageHeader } from "@/components/ui";
 import { JobCardForm } from "@/components/JobCardForm";
@@ -13,6 +13,7 @@ export default async function EditJobCardPage({
   searchParams: Promise<{ msg?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const { id } = await params;
   const { msg } = await searchParams;
   const settings = await getSettings();

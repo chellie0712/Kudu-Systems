@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { Flash, PageHeader } from "@/components/ui";
 import { InvoiceForm } from "@/components/InvoiceForm";
@@ -13,6 +13,7 @@ export default async function EditInvoicePage({
   searchParams: Promise<{ msg?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const { id } = await params;
   const { msg } = await searchParams;
   const invoice = await db.invoice.findUnique({ where: { id }, include: { items: { orderBy: { sortOrder: "asc" } } } });

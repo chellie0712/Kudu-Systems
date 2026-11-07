@@ -4,13 +4,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { QuotationStatus } from "@prisma/client";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
 
 export async function saveQuotation(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const settings = await getSettings();
   const id = str(fd, "id");
@@ -48,6 +49,7 @@ export async function saveQuotation(fd: FormData) {
 }
 
 export async function setQuotationStatus(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   await db.quotation.update({ where: { id }, data: { status: str(fd, "status") as QuotationStatus } });
@@ -56,6 +58,7 @@ export async function setQuotationStatus(fd: FormData) {
 }
 
 export async function deleteQuotation(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const id = str(fd, "id");
   const q = await db.quotation.delete({ where: { id } });
@@ -64,6 +67,7 @@ export async function deleteQuotation(fd: FormData) {
 }
 
 async function markAccepted(id: string) {
+  const db = await tenantDb();
   await db.quotation.updateMany({
     where: { id, status: { in: [QuotationStatus.DRAFT, QuotationStatus.SENT] } },
     data: { status: QuotationStatus.ACCEPTED },
@@ -72,6 +76,7 @@ async function markAccepted(id: string) {
 
 /** Create a job card pre-filled from the quotation, then open it for editing. */
 export async function createJobCardFromQuotation(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const q = await db.quotation.findUniqueOrThrow({
     where: { id: str(fd, "id") },
@@ -101,6 +106,7 @@ export async function createJobCardFromQuotation(fd: FormData) {
 
 /** Create an invoice that copies the quotation's line items and totals. */
 export async function createInvoiceFromQuotation(fd: FormData) {
+  const db = await tenantDb();
   await requireUser();
   const settings = await getSettings();
   const q = await db.quotation.findUniqueOrThrow({

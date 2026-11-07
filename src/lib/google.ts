@@ -1,6 +1,6 @@
 import { google, calendar_v3 } from "googleapis";
 import type { CalendarEvent } from "@prisma/client";
-import { db } from "./db";
+import { tenantDb } from "./db";
 import { getSettings } from "./settings";
 import { APP_TIMEZONE } from "./format";
 
@@ -11,6 +11,7 @@ export const googleConfigured = Boolean(process.env.AUTH_GOOGLE_ID && process.en
  * Returns null when Google is not configured or no account is connected.
  */
 export async function getCalendar(): Promise<{ cal: calendar_v3.Calendar; calendarId: string } | null> {
+  const db = await tenantDb();
   if (!googleConfigured) return null;
   const settings = await getSettings();
   if (!settings.googleSyncUserId) return null;
@@ -59,6 +60,7 @@ function toGoogle(ev: CalendarEvent): calendar_v3.Schema$Event {
 
 /** Create or update the Google copy of an event. Errors are returned, not thrown, so saving in Kudu never fails because of Google. */
 export async function pushEvent(eventId: string): Promise<string | null> {
+  const db = await tenantDb();
   try {
     const g = await getCalendar();
     if (!g) return null;
@@ -104,6 +106,7 @@ function fromGoogleTime(t?: calendar_v3.Schema$EventDateTime): { date: Date; all
  * First run imports events from 90 days ago onwards.
  */
 export async function pullFromGoogle(): Promise<{ imported: number; updated: number; deleted: number }> {
+  const db = await tenantDb();
   const g = await getCalendar();
   if (!g) throw new Error("Google Calendar is not connected. Connect it in Settings.");
   const settings = await getSettings();

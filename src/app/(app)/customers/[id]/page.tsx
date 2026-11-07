@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate, fmtDateTime, fmtTime, money } from "@/lib/format";
 import { deleteCustomer, setCustomerArchived } from "@/app/actions/customers";
@@ -27,6 +27,7 @@ export default async function CustomerPage({
   searchParams: Promise<{ tab?: string; msg?: string; err?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const { id } = await params;
   const { tab = "info", msg, err } = await searchParams;
   const settings = await getSettings();

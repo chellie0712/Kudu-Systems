@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { Empty, Flash, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Customers" };
@@ -11,6 +11,7 @@ export default async function CustomersPage({
   searchParams: Promise<{ q?: string; archived?: string; msg?: string }>;
 }) {
   await requireUser();
+  const db = await tenantDb();
   const { q = "", archived, msg } = await searchParams;
   const showArchived = archived === "1";
   const customers = await db.customer.findMany({

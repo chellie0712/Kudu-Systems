@@ -1,5 +1,5 @@
 import { requireUser } from "@/auth";
-import { db } from "@/lib/db";
+import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/ui";
 import { JobCardForm } from "@/components/JobCardForm";
@@ -7,6 +7,7 @@ import { JobCardForm } from "@/components/JobCardForm";
 export const metadata = { title: "New job card" };
 
 export default async function NewJobCardPage({ searchParams }: { searchParams: Promise<{ customerId?: string }> }) {
+  const db = await tenantDb();
   await requireUser();
   const { customerId } = await searchParams;
   const settings = await getSettings();

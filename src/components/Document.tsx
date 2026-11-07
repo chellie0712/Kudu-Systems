@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CompanyLogo } from "./CompanyLogo";
 import type { Customer, Settings } from "@prisma/client";
 import { money } from "@/lib/format";
 import { lineTotal } from "@/lib/totals";
@@ -18,7 +18,7 @@ export function DocHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-6 border-b-4 border-kudu-600 pb-5">
       <div className="space-y-2">
-        <Image src="/kudu-logo-sm.png" alt={settings.companyName} width={600} height={389} className="h-20 w-auto" />
+        <CompanyLogo logo={settings.logo} name={settings.companyName} className="h-20 w-auto" />
         <div className="text-xs leading-relaxed text-charcoal-600">
           <div className="font-semibold text-charcoal-800">{settings.companyName}</div>
           {settings.address && <div className="whitespace-pre-line">{settings.address}</div>}

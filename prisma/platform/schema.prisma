@@ -1,0 +1,37 @@
+// Platform registry: which companies exist, where each company's database lives,
+// and the super-admins who manage them. It lives in the "platform" schema of the
+// main database; every company's own data lives in its own database (prisma/schema.prisma).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/platform-client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("PLATFORM_DATABASE_URL")
+  directUrl = env("PLATFORM_DATABASE_URL_UNPOOLED")
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  /// Company code typed on the sign-in page, e.g. "kudu".
+  slug         String   @unique
+  name         String
+  /// Database created on the main Neon server for this company (same server, separate database).
+  databaseName String?
+  /// Encrypted connection string, for a company whose database is somewhere else (e.g. its own Neon project).
+  databaseUrl  String?
+  /// Both empty: the company's data is in the main database (the original Kudu data).
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model PlatformAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String   @default("")
+  passwordHash String
+  disabled     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
