@@ -50,7 +50,7 @@ export default async function SignOffPage({ params, searchParams }: { params: Pr
   const unfinished = incompleteRequired(checklists);
   const blockers = [
     !j.workDescription.trim() && "The description of the work done is empty.",
-    unfinished.length > 0 && `The ${unfinished.join(", ")} checklist${unfinished.length > 1 ? "s are" : " is"} not finished.`,
+    unfinished.length > 0 && `Not everything is ticked on ${unfinished.join(", ")}.`,
   ].filter(Boolean) as string[];
   const signed = j.status === "COMPLETED" && j.signedAt;
   const ingredients = [...j.activeIngredients, ...(j.activeIngredientOther ? [j.activeIngredientOther] : [])];

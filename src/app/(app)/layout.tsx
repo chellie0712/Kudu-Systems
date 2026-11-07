@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { ROLE_LABELS, can } from "@/lib/permissions";
 import { currentBranchId, getBranches } from "@/lib/branch";
 import { BranchSwitcher } from "@/components/BranchSwitcher";
+import { SignOutButton } from "@/components/SignOutButton";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -34,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 await signOut({ redirectTo: "/login" });
               }}
             >
-              <button className="btn-outline py-1.5">Sign out</button>
+              <SignOutButton />
             </form>
           )}
         </div>

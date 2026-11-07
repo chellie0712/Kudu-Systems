@@ -9,7 +9,9 @@ import { tenantDb } from "@/lib/db";
 import { optDate, parseJson, str } from "@/lib/form";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
-import { deleteGoogleEvent, pushEvent } from "@/lib/google";
+import { syncJobCardEvent } from "@/lib/jobCardCalendar";
+import { applySignOff, signOffProblems } from "@/lib/signoff";
+import { deleteGoogleEvent } from "@/lib/google";
 import type { PhotoRef } from "@/components/JobCardEditors";
 import { CUSTOM_PREFIX } from "@/lib/jobStatus";
 import { labourLines, unbilled } from "@/lib/labour";
@@ -39,42 +41,6 @@ async function withAutoChecklists(lists: ChecklistInput[], jobType: string): Pro
     }
   }
   return result;
-}
-
-/** Keep one calendar event per scheduled job card, mirrored to Google. */
-async function syncJobCardEvent(jobCardId: string): Promise<string | null> {
-  const db = await tenantDb();
-  const jc = await db.jobCard.findUniqueOrThrow({ where: { id: jobCardId }, include: { customer: true } });
-  const existing = await db.calendarEvent.findFirst({ where: { jobCardId } });
-
-  if (!jc.scheduledStart || jc.status === JobCardStatus.CANCELLED) {
-    if (existing) {
-      await deleteGoogleEvent(existing.googleEventId, existing.googleCalendarId);
-      await db.calendarEvent.delete({ where: { id: existing.id } });
-    }
-    return null;
-  }
-  const end = jc.scheduledEnd && jc.scheduledEnd > jc.scheduledStart ? jc.scheduledEnd : new Date(jc.scheduledStart.getTime() + 3600000);
-  const data = {
-    title: `${jc.number} · ${jc.customer.name}${jc.jobType ? ` · ${jc.jobType}` : ""}`,
-    description: [
-      jc.technician && `Technician: ${jc.technician}`,
-      jc.siteContact && `Site contact: ${jc.siteContact} ${jc.contactNumber}`,
-      jc.scopeOfWork && `\nScope:\n${jc.scopeOfWork}`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    location: jc.siteAddress,
-    start: jc.scheduledStart,
-    end,
-    allDay: false,
-    customerId: jc.customerId,
-    jobCardId: jc.id,
-  };
-  const ev = existing
-    ? await db.calendarEvent.update({ where: { id: existing.id }, data })
-    : await db.calendarEvent.create({ data });
-  return pushEvent(ev.id);
 }
 
 /** Loads a job card the user may work on, or sends them to /no-access. */
@@ -300,42 +266,16 @@ export async function signOffJobCard(fd: FormData) {
   const user = await requirePermission("jobcards.edit");
   const jc = await jobCardFor(user, str(fd, "id"));
   const path = `/sign/${jc.id}`;
-  const fail = (text: string): never => redirect(`${path}?err=${encodeURIComponent(text)}`);
-  if (jc.status === JobCardStatus.CANCELLED) fail("This job was cancelled and can't be signed off.");
-
-  const lists = await db.jobCardChecklist.findMany({ where: { jobCardId: jc.id } });
-  const unfinished = incompleteRequired(lists.map((l) => ({ ...l, items: parseItems(l.items) })));
-  const signature = str(fd, "customerSignature");
-  const name = str(fd, "customerSignName");
-  const missing = [
-    !jc.workDescription.trim() && "describe the work done on the job card",
-    unfinished.length > 0 && `finish the ${unfinished.join(", ")} checklist${unfinished.length > 1 ? "s" : ""}`,
-    !name && "enter the client's name",
-    !signature.startsWith("data:image/") && "get the client's signature",
-    fd.get("clientConfirmed") !== "on" && "tick the confirmation box",
-  ].filter(Boolean);
-  if (missing.length) fail(`Before sign-off, please ${missing.join(", ")}.`);
-
-  const stars = Number(str(fd, "rating"));
-  const now = new Date();
-  await db.jobCard.update({
-    where: { id: jc.id },
-    data: {
-      clientConfirmed: true,
-      customerSignName: name,
-      customerSignature: signature,
-      signedAt: now,
-      customerRating: Number.isInteger(stars) && stars >= 1 && stars <= 5 ? stars : null,
-      customerFeedback: str(fd, "feedback").slice(0, 2000),
-      status: JobCardStatus.COMPLETED,
-      statusId: null,
-      jobDate: jc.jobDate ?? now,
-      warrantyNo: jc.warrantyNo || jc.number,
-    },
-  });
-  // The job is finished, so nobody is still working on it.
-  await db.timeEntry.updateMany({ where: { jobCardId: jc.id, end: null }, data: { end: now } });
-  await syncJobCardEvent(jc.id);
+  const input = {
+    name: str(fd, "customerSignName"),
+    signature: str(fd, "customerSignature"),
+    confirmed: fd.get("clientConfirmed") === "on",
+    rating: Number(str(fd, "rating")) || null,
+    feedback: str(fd, "feedback"),
+  };
+  const missing = await signOffProblems(db, jc, input);
+  if (missing.length) redirect(`${path}?err=${encodeURIComponent(`Before sign-off, please ${missing.join(", ")}.`)}`);
+  await applySignOff(db, jc, input);
   revalidatePath("/job-cards");
   revalidatePath(`/job-cards/${jc.id}`);
   revalidatePath("/calendar");
