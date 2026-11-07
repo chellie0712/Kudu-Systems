@@ -50,7 +50,7 @@ Sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`, or put `AUTH_DISABLED
 4. Click **Deploy**. The first build fails because there is no database yet; that is expected.
 5. In the project, open **Storage → Create Database → Neon (Serverless Postgres)**, accept the defaults and connect it to the project. This adds `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` and similar variables, which the app picks up automatically (you do not need to copy them into `DATABASE_URL`).
 6. **Deployments → ⋯ on the latest → Redeploy.** When it is green, open the site and sign in with company code `kudu` and `ADMIN_EMAIL` / `ADMIN_PASSWORD`. The same email and password open the super-admin area at `/platform/login` (or set `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` to use a different login there).
-7. Add staff in **Settings → Users**. Then fill in company details, banking, PCO number and signature, products and warranty terms in **Settings**.
+7. Add staff in **Settings → Users & roles**. Then fill in company details, banking, PCO number and signature, products and warranty terms in **Settings**.
 
 Sign-in uses email and password. Google is optional: setting `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` adds "Sign in with Google" and enables Calendar sync.
 
@@ -75,6 +75,29 @@ One installation serves many companies. **Each company has its own database**: i
 **Keep `AUTH_SECRET` unchanged.** It also encrypts external company connection strings; changing it makes those unreadable.
 
 Not built yet: deleting a company (switch access off instead; dropping a database cannot be undone), and per-company subdomains.
+
+## Roles and permissions
+
+Every user has one role. The rules live in `src/lib/permissions.ts`; pages, server actions and the menu all check them there.
+
+| | Admin | Office | Technician |
+|---|---|---|---|
+| Customers, quotations, invoices, payments | ✓ | ✓ | — |
+| Job cards | all | all | only the ones assigned to them |
+| Create job cards, assign technician, schedule, scope | ✓ | ✓ | — (read-only) |
+| Fill in work done, photos, warranty, client sign-off | ✓ | ✓ | own jobs |
+| Cancel a job | ✓ | ✓ | — |
+| Prices and totals | ✓ | ✓ | — |
+| Calendar | all, edit | all, edit | own jobs, view only |
+| Delete customers, quotations, job cards, invoices, payments | ✓ | — | — |
+| Company settings, products, Google connection | ✓ | — | — |
+| Users and roles | ✓ | — | — |
+
+- Users who existed before roles were added became **Admins**. New users default to **Office**. The first admin (from `ADMIN_EMAIL`, or created by a super-admin) is an Admin.
+- A company always keeps at least one active admin: you cannot remove your own admin rights, or demote or disable the last admin.
+- A job card's **Assigned to** picks the user who does the job; that user sees it under *My Job Cards* and on *My Calendar*. The printed technician name follows the chosen user unless you type over it.
+- Opening a page or action without permission leads to `/no-access`.
+- Local demo mode (`AUTH_DISABLED=true`) signs you in as an Admin; set `DEMO_ROLE=OFFICE` or `DEMO_ROLE=TECHNICIAN` to try the other roles.
 
 ## Google sign-in and Calendar sync
 

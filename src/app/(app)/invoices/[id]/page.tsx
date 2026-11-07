@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
+import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate, money, toDateInput } from "@/lib/format";
@@ -17,7 +18,7 @@ export default async function InvoicePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ msg?: string; err?: string }>;
 }) {
-  await requireUser();
+  const user = await requirePermission("invoices.view");
   const db = await tenantDb();
   const { id } = await params;
   const { msg, err } = await searchParams;
@@ -127,10 +128,12 @@ export default async function InvoicePage({
                       <div className="font-medium">{money(p.amount, sym)}</div>
                       <div className="text-xs text-charcoal-500">{fmtDate(p.date)} · {p.method}{p.reference && ` · ${p.reference}`}</div>
                     </div>
-                    <form action={deletePayment}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <ConfirmButton message="Remove this payment?" className="text-xs text-charcoal-400 hover:text-kudu-600">Remove</ConfirmButton>
-                    </form>
+                    {can(user.role, "payments.delete") && (
+                      <form action={deletePayment}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <ConfirmButton message="Remove this payment?" className="text-xs text-charcoal-400 hover:text-kudu-600">Remove</ConfirmButton>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -152,12 +155,14 @@ export default async function InvoicePage({
               </form>
             )}
           </div>
-          <form action={deleteInvoice} className="text-right">
-            <input type="hidden" name="id" value={inv.id} />
-            <ConfirmButton message={`Delete invoice ${inv.number} and its payments? Consider cancelling instead to keep your numbering intact.`}>
-              Delete invoice
-            </ConfirmButton>
-          </form>
+          {can(user.role, "invoices.delete") && (
+            <form action={deleteInvoice} className="text-right">
+              <input type="hidden" name="id" value={inv.id} />
+              <ConfirmButton message={`Delete invoice ${inv.number} and its payments? Consider cancelling instead to keep your numbering intact.`}>
+                Delete invoice
+              </ConfirmButton>
+            </form>
+          )}
         </aside>
       </div>
     </div>

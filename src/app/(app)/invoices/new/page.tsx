@@ -1,4 +1,4 @@
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/ui";
@@ -8,7 +8,7 @@ export const metadata = { title: "New invoice" };
 
 export default async function NewInvoicePage({ searchParams }: { searchParams: Promise<{ customerId?: string }> }) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.edit");
   const { customerId } = await searchParams;
   const [customers, jobCards, settings] = await Promise.all([
     db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),

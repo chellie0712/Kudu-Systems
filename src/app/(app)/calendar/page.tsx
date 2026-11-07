@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/auth";
+import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { dayKey, fmtTime, fromLocalInput } from "@/lib/format";
@@ -17,7 +18,9 @@ export default async function CalendarPage({
 }: {
   searchParams: Promise<{ month?: string; customerId?: string; day?: string; msg?: string; err?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
+  const all = can(user.role, "calendar.viewAll");
+  const canEdit = can(user.role, "calendar.edit");
   const db = await tenantDb();
   const sp = await searchParams;
   const todayKey = dayKey(new Date());
@@ -37,11 +40,13 @@ export default async function CalendarPage({
         start: { lt: rangeEnd },
         end: { gt: rangeStart },
         ...(sp.customerId ? { customerId: sp.customerId } : {}),
+        // Technicians only see the jobs assigned to them.
+        ...(all ? {} : { jobCard: { technicianId: user.id } }),
       },
       include: { customer: { select: { name: true } } },
       orderBy: { start: "asc" },
     }),
-    db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    all ? db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     getSettings(),
   ]);
 
@@ -70,23 +75,29 @@ export default async function CalendarPage({
   return (
     <div>
       <PageHeader
-        title="Calendar"
-        subtitle={connected ? `Synced with Google Calendar (${settings.googleCalendarId})` : "Google Calendar not connected – set it up in Settings"}
+        title={all ? "Calendar" : "My Calendar"}
+        subtitle={
+          !all
+            ? "Your assigned jobs"
+            : connected
+              ? `Synced with Google Calendar (${settings.googleCalendarId})`
+              : "Google Calendar not connected – set it up in Settings"
+        }
         actions={
-          connected ? (
+          !canEdit ? undefined : connected ? (
             <form action={syncNow}>
               <input type="hidden" name="returnTo" value={qs({})} />
               <button className="btn-dark">⟳ Sync with Google</button>
             </form>
-          ) : (
+          ) : can(user.role, "settings.manage") ? (
             <Link href="/settings#google" className="btn-outline">Connect Google Calendar</Link>
-          )
+          ) : undefined
         }
       />
       <Flash message={sp.msg} />
       <Flash message={sp.err} tone="error" />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+      <div className={`grid gap-6 ${canEdit ? "xl:grid-cols-[1fr_320px]" : ""}`}>
         <div className="card overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-charcoal-100 p-3">
             <div className="flex items-center gap-1">
@@ -95,6 +106,7 @@ export default async function CalendarPage({
               <Link href={qs({ month: next })} className="btn-outline px-2.5 py-1">›</Link>
               <h2 className="ml-3 text-lg font-bold">{title}</h2>
             </div>
+            {all && (
             <form className="flex gap-2">
               <input type="hidden" name="month" value={month} />
               <select name="customerId" defaultValue={sp.customerId ?? ""} className="input w-auto py-1">
@@ -103,6 +115,7 @@ export default async function CalendarPage({
               </select>
               <button className="btn-outline py-1">Filter</button>
             </form>
+            )}
           </div>
           <div className="grid grid-cols-7 border-b border-charcoal-100 bg-charcoal-50 text-center text-xs font-semibold uppercase text-charcoal-500">
             {WEEKDAYS.map((d) => <div key={d} className="py-2">{d}</div>)}
@@ -148,6 +161,7 @@ export default async function CalendarPage({
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-charcoal-100" /> Other / from Google</span>
           </div>
         </div>
+        {canEdit && (
         <div className="card h-fit p-5">
           <SectionTitle>New event</SectionTitle>
           <EventForm
@@ -158,6 +172,7 @@ export default async function CalendarPage({
           />
           <p className="mt-4 text-xs text-charcoal-500">To book a job, create a job card and set its schedule; it appears here automatically.</p>
         </div>
+        )}
       </div>
     </div>
   );

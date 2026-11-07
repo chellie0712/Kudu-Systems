@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { QuotationStatus } from "@prisma/client";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { Flash, PageHeader } from "@/components/ui";
@@ -11,7 +11,7 @@ export const metadata = { title: "Quotations" };
 
 export default async function QuotationsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; msg?: string }> }) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("quotations.view");
   const { status, q = "", msg } = await searchParams;
   const settings = await getSettings();
   const rows = await db.quotation.findMany({

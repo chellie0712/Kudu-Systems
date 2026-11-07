@@ -1,10 +1,11 @@
-import { authDisabled, requireUser } from "@/auth";
+import { authDisabled, requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { googleConfigured } from "@/lib/google";
 import { deleteProduct, disconnectGoogleCalendar, saveProduct, saveSettings, useMyGoogleCalendar } from "@/app/actions/settings";
 import { SignaturePad } from "@/components/JobCardEditors";
-import { addUser, resetPassword, setUserDisabled } from "@/app/actions/users";
+import { addUser, resetPassword, setUserDisabled, setUserRole } from "@/app/actions/users";
+import { PERMISSION_TABLE, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, can } from "@/lib/permissions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { LogoInput } from "@/components/LogoInput";
 import { Field, Flash, PageHeader, SectionTitle } from "@/components/ui";
@@ -13,7 +14,7 @@ export const metadata = { title: "Settings" };
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ msg?: string; err?: string }> }) {
   const db = await tenantDb();
-  const user = await requireUser();
+  const user = await requirePermission("settings.manage");
   const { msg, err } = await searchParams;
   const s = await getSettings();
   const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
@@ -118,8 +119,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       </form>
 
       <div id="users" className="card mt-6 p-6">
-        <SectionTitle>Users</SectionTitle>
-        <p className="mb-3 text-sm text-charcoal-500">People who can sign in with email and password. Passwords need at least 10 characters.</p>
+        <SectionTitle>Users &amp; roles</SectionTitle>
+        <p className="mb-3 text-sm text-charcoal-500">
+          People who can sign in with email and password. Passwords need at least 10 characters. A company always keeps at least one active admin.
+        </p>
         <div className="divide-y divide-charcoal-100">
           {users.map((u) => (
             <div key={u.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
@@ -127,6 +130,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 <div className="font-medium">{u.name} {u.id === user.id && <span className="text-xs text-charcoal-500">(you)</span>}</div>
                 <div className="text-xs text-charcoal-500">{u.email}{u.disabled && " · disabled"}{!u.passwordHash && " · Google only"}</div>
               </div>
+              <form action={setUserRole} className="flex gap-2">
+                <input type="hidden" name="id" value={u.id} />
+                <select name="role" defaultValue={u.role} className="input w-36 py-1.5" aria-label={`Role of ${u.email}`}>
+                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                </select>
+                <button className="btn-outline py-1.5">Set role</button>
+              </form>
               <form action={resetPassword} className="flex gap-2">
                 <input type="hidden" name="id" value={u.id} />
                 <input name="password" type="password" minLength={10} className="input w-44 py-1.5" placeholder="New password" autoComplete="new-password" required />
@@ -146,8 +156,45 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <input name="name" className="input w-44 flex-none" placeholder="Name" />
           <input name="email" type="email" className="input w-56 flex-none" placeholder="Email" required />
           <input name="password" type="password" minLength={10} className="input w-44 flex-none" placeholder="Password" autoComplete="new-password" required />
+          <select name="role" defaultValue="OFFICE" className="input w-36 flex-none" aria-label="Role">
+            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          </select>
           <button className="btn-primary py-1.5">+ Add user</button>
         </form>
+
+        <div className="mt-6 overflow-x-auto">
+          <table className="w-full text-sm">
+            <caption className="mb-2 text-left text-xs font-semibold uppercase tracking-wide text-charcoal-500">What each role can do</caption>
+            <thead>
+              <tr className="border-b border-charcoal-200 text-left">
+                <th className="py-1.5 pr-3 font-semibold"></th>
+                {ROLES.map((r) => <th key={r} className="px-3 py-1.5 text-center font-semibold">{ROLE_LABELS[r]}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {PERMISSION_TABLE.map((row) => (
+                <tr key={row.label} className="border-b border-charcoal-100">
+                  <td className="py-1.5 pr-3">{row.label}</td>
+                  {ROLES.map((r) => (
+                    <td key={r} className="px-3 py-1.5 text-center">
+                      {row.note?.[r] ? (
+                        <span className="text-xs font-medium text-charcoal-600">{row.note[r]}</span>
+                      ) : can(r, row.permission) ? (
+                        <span className="font-bold text-kudu-600" aria-label="Yes">✓</span>
+                      ) : (
+                        <span className="text-charcoal-300" aria-label="No">—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <ul className="mt-3 space-y-1 text-xs text-charcoal-500">
+            {ROLES.map((r) => <li key={r}><b className="text-charcoal-700">{ROLE_LABELS[r]}:</b> {ROLE_DESCRIPTIONS[r]}</li>)}
+          </ul>
+          <p className="mt-2 text-xs text-charcoal-500">To give a technician a job, choose them under “Assigned to” on the job card.</p>
+        </div>
       </div>
 
       <div id="products" className="card mt-6 p-6">

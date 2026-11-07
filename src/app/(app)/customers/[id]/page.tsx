@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
+import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate, fmtDateTime, fmtTime, money } from "@/lib/format";
@@ -26,7 +27,7 @@ export default async function CustomerPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tab?: string; msg?: string; err?: string }>;
 }) {
-  await requireUser();
+  const user = await requirePermission("customers.view");
   const db = await tenantDb();
   const { id } = await params;
   const { tab = "info", msg, err } = await searchParams;
@@ -167,12 +168,14 @@ export default async function CustomerPage({
                 <input type="hidden" name="archived" value={String(!customer.archived)} />
                 <button className="btn-outline w-full">{customer.archived ? "Restore customer" : "Archive customer"}</button>
               </form>
-              <form action={deleteCustomer}>
-                <input type="hidden" name="id" value={id} />
-                <ConfirmButton message={`Delete ${customer.name}? This cannot be undone.`} className="btn-danger w-full">
-                  Delete customer
-                </ConfirmButton>
-              </form>
+              {can(user.role, "customers.delete") && (
+                <form action={deleteCustomer}>
+                  <input type="hidden" name="id" value={id} />
+                  <ConfirmButton message={`Delete ${customer.name}? This cannot be undone.`} className="btn-danger w-full">
+                    Delete customer
+                  </ConfirmButton>
+                </form>
+              )}
             </div>
           </div>
         </div>

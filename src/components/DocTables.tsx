@@ -42,8 +42,8 @@ export function QuotationTable({ rows, symbol }: { rows: WithCustomer<Quotation>
   );
 }
 
-export function JobCardTable({ rows }: { rows: WithCustomer<JobCard>[] }) {
-  if (!rows.length) return <Empty>No job cards yet.</Empty>;
+export function JobCardTable({ rows, linkCustomers = true, empty = "No job cards yet." }: { rows: WithCustomer<JobCard>[]; linkCustomers?: boolean; empty?: string }) {
+  if (!rows.length) return <Empty>{empty}</Empty>;
   return (
     <table className="table">
       <thead>
@@ -60,7 +60,9 @@ export function JobCardTable({ rows }: { rows: WithCustomer<JobCard>[] }) {
         {rows.map((j) => (
           <tr key={j.id}>
             <td><Link className="font-semibold text-kudu-600 hover:underline" href={`/job-cards/${j.id}`}>{j.number}</Link></td>
-            {j.customer && <td><Link href={`/customers/${j.customer.id}`} className="hover:text-kudu-600">{j.customer.name}</Link></td>}
+            {j.customer && (
+              <td>{linkCustomers ? <Link href={`/customers/${j.customer.id}`} className="hover:text-kudu-600">{j.customer.name}</Link> : j.customer.name}</td>
+            )}
             <td>{j.jobType}</td>
             <td>{fmtDateTime(j.scheduledStart) || <span className="text-charcoal-400">Not scheduled</span>}</td>
             <td>{j.technician}</td>

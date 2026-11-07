@@ -4,6 +4,7 @@ import { toDateInput, toDateTimeInput } from "@/lib/format";
 import { JOB_TYPES, MAX_EXTRA_PHOTOS, lines, productLabel } from "@/lib/jobcard";
 import { JobCardSubmit, PhotoPicker, SignaturePad, WarrantyDates } from "./JobCardEditors";
 import { Field, NumberedSection } from "./ui";
+import { TechnicianPicker, type Assignee } from "./TechnicianPicker";
 
 export type JobCardDefaults = Partial<
   Pick<JobCard, "customerId" | "siteAddress" | "siteContact" | "contactNumber" | "scopeOfWork" | "quotationId">
@@ -15,14 +16,21 @@ export function JobCardForm({
   products,
   settings,
   defaults,
+  assignees = [],
+  canAssign = true,
 }: {
   jobCard?: JobCard & { photos: Pick<JobCardPhoto, "id" | "kind">[] };
   customers: Pick<Customer, "id" | "name">[];
   products: Product[];
   settings: Settings;
   defaults?: JobCardDefaults;
+  /** Users the job can be assigned to. */
+  assignees?: Assignee[];
+  /** False for technicians: who, for whom, when and what are set by the office and shown read-only. */
+  canAssign?: boolean;
 }) {
   const j = jobCard;
+  const lock = !canAssign;
   const covers = lines(settings.warrantyCovers);
   const productLabels = products.map(productLabel);
   // Keep ingredients ticked on older cards even if the product was since removed from Settings.
@@ -41,55 +49,57 @@ export function JobCardForm({
           <Field label="Date">
             <input name="jobDate" type="date" className="input" defaultValue={toDateInput(j?.jobDate ?? j?.scheduledStart ?? new Date())} />
           </Field>
-          <Field label="Technician name">
-            <input name="technician" className="input" defaultValue={j?.technician} placeholder="Full name" />
-          </Field>
+          <TechnicianPicker assignees={assignees} technicianId={j?.technicianId} technician={j?.technician} disabled={lock} />
           <Field label="Job type">
-            <input name="jobType" list="job-types" className="input" defaultValue={j?.jobType} />
+            <input name="jobType" list="job-types" className="input" defaultValue={j?.jobType} disabled={lock} />
             <datalist id="job-types">{JOB_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
           </Field>
           <Field label="Scheduled start">
-            <input name="scheduledStart" type="datetime-local" className="input" defaultValue={toDateTimeInput(j?.scheduledStart)} />
+            <input name="scheduledStart" type="datetime-local" className="input" defaultValue={toDateTimeInput(j?.scheduledStart)} disabled={lock} />
           </Field>
           <Field label="Scheduled end">
-            <input name="scheduledEnd" type="datetime-local" className="input" defaultValue={toDateTimeInput(j?.scheduledEnd)} />
+            <input name="scheduledEnd" type="datetime-local" className="input" defaultValue={toDateTimeInput(j?.scheduledEnd)} disabled={lock} />
           </Field>
           <Field label="Status">
             <select name="status" className="input" defaultValue={j?.status ?? "SCHEDULED"}>
               <option value="SCHEDULED">Scheduled</option>
               <option value="IN_PROGRESS">In progress</option>
               <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
+              {(canAssign || j?.status === "CANCELLED") && <option value="CANCELLED">Cancelled</option>}
             </select>
           </Field>
           <Field label="Priority">
-            <select name="priority" className="input" defaultValue={j?.priority ?? "Normal"}>
+            <select name="priority" className="input" defaultValue={j?.priority ?? "Normal"} disabled={lock}>
               {["Low", "Normal", "High", "Urgent"].map((p) => <option key={p}>{p}</option>)}
             </select>
           </Field>
           <Field label="Scope / instructions" className="sm:col-span-2">
-            <textarea name="scopeOfWork" rows={3} className="input" defaultValue={j?.scopeOfWork ?? defaults?.scopeOfWork} />
+            <textarea name="scopeOfWork" rows={3} className="input" defaultValue={j?.scopeOfWork ?? defaults?.scopeOfWork} disabled={lock} />
           </Field>
         </div>
-        <p className="mt-2 text-xs text-charcoal-500">A scheduled job appears on the calendar and, once connected, in Google Calendar.</p>
+        <p className="mt-2 text-xs text-charcoal-500">
+          {lock
+            ? "The office sets who does the job, when, and the scope. Ask them if something here is wrong."
+            : "A scheduled job appears on the calendar and, once connected, in Google Calendar. The assigned user sees it under My Job Cards."}
+        </p>
       </NumberedSection>
 
       <NumberedSection n={2} title="CLIENT DETAILS">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Client name *" className="sm:col-span-2">
-            <select name="customerId" required className="input" defaultValue={j?.customerId ?? defaults?.customerId ?? ""}>
+            <select name="customerId" required className="input" defaultValue={j?.customerId ?? defaults?.customerId ?? ""} disabled={lock}>
               <option value="" disabled>Choose a customer…</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>
           <Field label="Contact number">
-            <input name="contactNumber" type="tel" className="input" defaultValue={j?.contactNumber ?? defaults?.contactNumber} placeholder="e.g. 082 123 4567" />
+            <input name="contactNumber" type="tel" className="input" defaultValue={j?.contactNumber ?? defaults?.contactNumber} placeholder="e.g. 082 123 4567" disabled={lock} />
           </Field>
           <Field label="Site contact person">
-            <input name="siteContact" className="input" defaultValue={j?.siteContact ?? defaults?.siteContact} />
+            <input name="siteContact" className="input" defaultValue={j?.siteContact ?? defaults?.siteContact} disabled={lock} />
           </Field>
           <Field label="Site address" className="sm:col-span-2">
-            <textarea name="siteAddress" rows={2} className="input" defaultValue={j?.siteAddress ?? defaults?.siteAddress} placeholder="Physical address of the job" />
+            <textarea name="siteAddress" rows={2} className="input" defaultValue={j?.siteAddress ?? defaults?.siteAddress} placeholder="Physical address of the job" disabled={lock} />
           </Field>
         </div>
         <p className="mt-2 text-xs text-charcoal-500">The client&apos;s VAT number is taken from their customer profile.</p>

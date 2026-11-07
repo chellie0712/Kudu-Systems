@@ -1,7 +1,8 @@
 import { CompanyLogo } from "@/components/CompanyLogo";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/auth";
+import { can, canAccessJobCard } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate, fmtDateTime, fmtTime } from "@/lib/format";
@@ -27,7 +28,7 @@ export default async function JobCardPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ msg?: string; err?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const db = await tenantDb();
   const { id } = await params;
   const { msg, err } = await searchParams;
@@ -45,6 +46,8 @@ export default async function JobCardPage({
     getSettings(),
   ]);
   if (!j) notFound();
+  if (!canAccessJobCard(user, j)) redirect("/no-access?need=jobcards.viewAll");
+  const may = (p: Parameters<typeof can>[1]) => can(user.role, p);
   const onGoogle = j.events.some((e) => e.googleEventId);
   const before = j.photos.find((p) => p.kind === "BEFORE");
   const after = j.photos.find((p) => p.kind === "AFTER");
@@ -54,16 +57,18 @@ export default async function JobCardPage({
   return (
     <div>
       <PageHeader
-        back={{ href: `/customers/${j.customerId}?tab=jobcards`, label: j.customer.name }}
+        back={may("customers.view") ? { href: `/customers/${j.customerId}?tab=jobcards`, label: j.customer.name } : { href: "/job-cards", label: "My Job Cards" }}
         title={<span className="flex items-center gap-3">{j.number} <StatusBadge status={j.status} /></span>}
         subtitle={[j.jobType, j.scheduledStart && fmtDateTime(j.scheduledStart), onGoogle && "On Google Calendar"].filter(Boolean).join(" · ")}
         actions={
           <>
             <Link href={`/job-cards/${j.id}/edit`} className="btn-primary">Edit / complete</Link>
-            <form action={createInvoiceFromJobCard}>
-              <input type="hidden" name="id" value={j.id} />
-              <button className="btn-dark">Create invoice</button>
-            </form>
+            {may("invoices.edit") && (
+              <form action={createInvoiceFromJobCard}>
+                <input type="hidden" name="id" value={j.id} />
+                <button className="btn-dark">Create invoice</button>
+              </form>
+            )}
             <PrintButton />
           </>
         }
@@ -74,7 +79,7 @@ export default async function JobCardPage({
       <div className="no-print mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-charcoal-500">Mark as:</span>
         {(["IN_PROGRESS", "CANCELLED"] as const)
-          .filter((s) => s !== j.status)
+          .filter((s) => s !== j.status && (s !== "CANCELLED" || may("jobcards.assign")))
           .map((s) => (
             <form key={s} action={setJobCardStatus}>
               <input type="hidden" name="id" value={j.id} />
@@ -86,8 +91,8 @@ export default async function JobCardPage({
           <Link href={`/job-cards/${j.id}/edit`} className="btn-outline py-1 text-xs">complete &amp; sign off</Link>
         )}
         <span className="ml-auto flex flex-wrap gap-3">
-          {j.quotation && <Link href={`/quotations/${j.quotation.id}`} className="text-kudu-600 hover:underline">Quotation {j.quotation.number}</Link>}
-          {j.invoices.map((i) => (
+          {j.quotation && may("quotations.view") && <Link href={`/quotations/${j.quotation.id}`} className="text-kudu-600 hover:underline">Quotation {j.quotation.number}</Link>}
+          {may("invoices.view") && j.invoices.map((i) => (
             <Link key={i.id} href={`/invoices/${i.id}`} className="text-kudu-600 hover:underline">Invoice {i.number}</Link>
           ))}
         </span>
@@ -213,10 +218,12 @@ export default async function JobCardPage({
         </NumberedSection>
       </article>
 
-      <form action={deleteJobCard} className="no-print mx-auto mt-6 max-w-3xl text-right">
-        <input type="hidden" name="id" value={j.id} />
-        <ConfirmButton message={`Delete job card ${j.number}, its photos and its calendar event?`}>Delete job card</ConfirmButton>
-      </form>
+      {may("jobcards.delete") && (
+        <form action={deleteJobCard} className="no-print mx-auto mt-6 max-w-3xl text-right">
+          <input type="hidden" name="id" value={j.id} />
+          <ConfirmButton message={`Delete job card ${j.number}, its photos and its calendar event?`}>Delete job card</ConfirmButton>
+        </form>
+      )}
     </div>
   );
 }
