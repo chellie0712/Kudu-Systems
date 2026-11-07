@@ -24,7 +24,7 @@ const allowedEmails = (process.env.ALLOWED_EMAILS || "")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-type SignedIn = { id: string; email: string | null; name: string | null; companyId?: string; kind: "company" | "platform" };
+type SignedIn = { id: string; email: string | null; name: string | null; companyId?: string; kind: "company" | "platform" | "portal" };
 
 async function activeCompany(slug: string): Promise<Company | null> {
   const company = await getCompanyBySlug(slug);
@@ -58,6 +58,16 @@ async function authorizeCompanyUser(company: Company, email: string, password: s
     create: { email, name: "Administrator", passwordHash, role: "ADMIN" },
   });
   return signedIn(created);
+}
+
+/** Customer portal sign-in: a customer's contact, by company code + email + password. */
+async function authorizePortalUser(company: Company, email: string, password: string): Promise<SignedIn | null> {
+  const db = clientForCompany(company);
+  const pu = await db.portalUser.findUnique({ where: { email }, include: { customer: { select: { archived: true } } } });
+  if (!pu?.passwordHash || pu.disabled || pu.customer.archived) return null;
+  if (!(await bcrypt.compare(password, pu.passwordHash))) return null;
+  await db.portalUser.update({ where: { id: pu.id }, data: { lastLoginAt: new Date() } });
+  return { id: pu.id, email: pu.email, name: pu.name, companyId: company.id, kind: "portal" };
 }
 
 /**
@@ -99,6 +109,17 @@ function buildConfig(googleTenant: { company: Company; db: PrismaClient } | null
         const company = await activeCompany(field(creds?.company));
         if (!company || !email || !password) return null;
         return authorizeCompanyUser(company, email, password);
+      },
+    }),
+    Credentials({
+      id: "portal",
+      credentials: { company: { label: "Company code" }, email: { label: "Email" }, password: { label: "Password", type: "password" } },
+      authorize: async (creds) => {
+        const email = field(creds?.email).toLowerCase();
+        const password = String(creds?.password ?? "");
+        const company = await activeCompany(field(creds?.company));
+        if (!company || !email || !password) return null;
+        return authorizePortalUser(company, email, password);
       },
     }),
     Credentials({
@@ -210,6 +231,8 @@ export const getUser = cache(async (): Promise<AppUser | null> => {
     return { id: "local-demo", name: "Demo User", email: "demo@localhost", role: demoRole === "OFFICE" || demoRole === "TECHNICIAN" ? demoRole : "ADMIN" };
   }
   const session = (await auth()) as AppSession;
+  // Customer portal sessions never count as staff.
+  if (session?.kind === "portal") return null;
   const companyId = await getSessionCompanyId();
   if (!session?.user?.id || !companyId) return null;
   const company = await getCompany(companyId);
@@ -253,4 +276,27 @@ export async function requirePlatformAdmin(): Promise<PlatformAdminUser> {
   const admin = await getPlatformAdmin();
   if (!admin) redirect("/platform/login");
   return admin;
+}
+
+export type PortalSessionUser = { id: string; name: string; email: string; customerId: string; customerName: string };
+
+/** The signed-in customer portal user, or null. Looked up once per request. */
+export const getPortalUser = cache(async (): Promise<PortalSessionUser | null> => {
+  const session = (await auth()) as AppSession;
+  if (!session?.user?.id || session.kind !== "portal" || !session.companyId) return null;
+  const company = await getCompany(session.companyId);
+  if (!company?.active) return null;
+  const pu = await clientForCompany(company).portalUser.findUnique({
+    where: { id: session.user.id },
+    include: { customer: { select: { name: true, archived: true } } },
+  });
+  if (!pu || pu.disabled || !pu.passwordHash || pu.customer.archived) return null;
+  return { id: pu.id, name: pu.name || pu.email, email: pu.email, customerId: pu.customerId, customerName: pu.customer.name };
+});
+
+/** Use at the top of every customer portal page and action. */
+export async function requirePortalUser(): Promise<PortalSessionUser> {
+  const user = await getPortalUser();
+  if (!user) redirect("/portal/login");
+  return user;
 }

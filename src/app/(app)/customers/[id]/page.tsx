@@ -14,6 +14,8 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { CustomerAssetsTab } from "@/components/Assets";
 import { QueryTable } from "@/components/Queries";
 import { isOpen } from "@/lib/queries";
+import { PortalAccessTab } from "@/components/PortalAccess";
+import { currentCompany } from "@/lib/db";
 
 const tabs = [
   { key: "info", label: "Information" },
@@ -23,6 +25,7 @@ const tabs = [
   { key: "calendar", label: "Calendar" },
   { key: "assets", label: "Assets" },
   { key: "queries", label: "Queries" },
+  { key: "portal", label: "Portal" },
 ];
 
 export default async function CustomerPage({
@@ -46,6 +49,7 @@ export default async function CustomerPage({
       events: { orderBy: { start: "asc" } },
       branch: { select: { name: true } },
       queries: { orderBy: { createdAt: "desc" }, include: { customer: { select: { id: true, name: true } }, assignedTo: { select: { name: true, email: true } } } },
+      portalUsers: { orderBy: { createdAt: "asc" } },
       assets: {
         orderBy: [{ active: "desc" }, { code: "asc" }, { name: "asc" }],
         include: { checks: { orderBy: { checkedAt: "desc" }, include: { jobCard: { select: { id: true, number: true } } } } },
@@ -68,7 +72,9 @@ export default async function CustomerPage({
     calendar: upcoming.length,
     assets: customer.assets.filter((a) => a.active).length,
     queries: customer.queries.filter((q) => isOpen(q.status)).length,
+    portal: customer.portalUsers.filter((u) => !u.disabled && u.passwordHash).length,
   };
+  const visibleTabs = tabs.filter((t) => t.key !== "portal" || can(user.role, "portal.manage"));
 
   return (
     <div>
@@ -108,7 +114,7 @@ export default async function CustomerPage({
       </div>
 
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-charcoal-200">
-        {tabs.map((t) => (
+        {visibleTabs.map((t) => (
           <Link
             key={t.key}
             href={`/customers/${id}?tab=${t.key}`}
@@ -218,6 +224,9 @@ export default async function CustomerPage({
             {can(user.role, "queries.view") ? <QueryTable rows={customer.queries} showCustomer={false} /> : <Empty>You don&apos;t have access to queries.</Empty>}
           </div>
         </div>
+      )}
+      {tab === "portal" && can(user.role, "portal.manage") && (
+        <PortalAccessTab customer={customer} users={customer.portalUsers} companySlug={(await currentCompany()).company.slug} companyName={settings.companyName} />
       )}
       {tab === "assets" && (
         <CustomerAssetsTab customerId={id} assets={customer.assets} canEdit={can(user.role, "assets.edit")} canDelete={can(user.role, "assets.delete")} />

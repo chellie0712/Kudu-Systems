@@ -4,7 +4,7 @@ import { requirePermission } from "@/auth";
 import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { fmtDate } from "@/lib/format";
+import { fmtDateTime } from "@/lib/format";
 import {
   createInvoiceFromQuotation,
   createJobCardFromQuotation,
@@ -12,7 +12,7 @@ import {
   setQuotationStatus,
 } from "@/app/actions/quotations";
 import { Flash, PageHeader, StatusBadge } from "@/components/ui";
-import { CustomerBlock, DocHeader, ItemsTable, TotalsBlock } from "@/components/Document";
+import { QuotationSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 
 export default async function QuotationPage({
@@ -39,7 +39,6 @@ export default async function QuotationPage({
     getSettings(),
   ]);
   if (!q) notFound();
-  const sym = settings.currencySymbol;
 
   return (
     <div>
@@ -64,6 +63,12 @@ export default async function QuotationPage({
       />
       <Flash message={msg} />
       <Flash message={err} tone="error" />
+      {q.respondedAt && (
+        <div className={`no-print mb-4 rounded-md border p-3 text-sm ${q.response === "ACCEPTED" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-charcoal-200 bg-white"}`}>
+          <span className="font-semibold">{q.response === "DECLINED" ? "Declined" : "Accepted"} online</span> by {q.respondedBy} on {fmtDateTime(q.respondedAt)} in the customer portal.
+          {q.responseNote && <span className="mt-1 block whitespace-pre-line italic">“{q.responseNote}”</span>}
+        </div>
+      )}
 
       <div className="no-print mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-charcoal-500">Mark as:</span>
@@ -88,46 +93,7 @@ export default async function QuotationPage({
         )}
       </div>
 
-      <article className="print-sheet card mx-auto max-w-4xl space-y-6 p-8">
-        <DocHeader
-          settings={settings}
-          branch={q.customer.branch}
-          docType="Quotation"
-          number={q.number}
-          meta={[
-            ["Date", fmtDate(q.issueDate)],
-            ["Valid until", fmtDate(q.validUntil)],
-          ]}
-        />
-        <div className="grid gap-6 sm:grid-cols-2">
-          <CustomerBlock customer={q.customer} title="Quotation for" />
-          {(q.siteAddress || q.customer.siteAddress) && (
-            <div>
-              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-kudu-600">Site</div>
-              <div className="whitespace-pre-line text-sm">{q.siteAddress || q.customer.siteAddress}</div>
-            </div>
-          )}
-        </div>
-        {q.title && <h2 className="text-lg font-semibold">{q.title}</h2>}
-        <ItemsTable items={q.items} symbol={sym} />
-        <TotalsBlock doc={q} symbol={sym} />
-        {q.notes && (
-          <div>
-            <div className="label">Notes</div>
-            <p className="whitespace-pre-line text-sm">{q.notes}</p>
-          </div>
-        )}
-        {q.terms && (
-          <div className="border-t border-charcoal-100 pt-4">
-            <div className="label">Terms & conditions</div>
-            <p className="whitespace-pre-line text-xs text-charcoal-600">{q.terms}</p>
-          </div>
-        )}
-        <div className="grid gap-8 pt-6 sm:grid-cols-2">
-          <div className="border-t border-charcoal-400 pt-1 text-xs text-charcoal-500">Accepted by (name & signature)</div>
-          <div className="border-t border-charcoal-400 pt-1 text-xs text-charcoal-500">Date</div>
-        </div>
-      </article>
+      <QuotationSheet q={q} settings={settings} />
 
       {can(user.role, "quotations.delete") && (
         <form action={deleteQuotation} className="no-print mx-auto mt-6 max-w-4xl text-right">
