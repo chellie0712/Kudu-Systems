@@ -34,6 +34,7 @@ model User {
   labourRate    Int? // cents per hour excl. VAT; overrides Settings.labourRate when set
   timeEntries   TimeEntry[]
   vans          StockLocation[] // vans this user drives
+  queries       Query[] // queries assigned to this user
   branchId      String? // home branch: the branch shown when they sign in
   branch        Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
   accounts      Account[]
@@ -105,6 +106,8 @@ model Settings {
   nextQuoteNo        Int     @default(1)
   nextJobCardNo      Int     @default(1)
   nextInvoiceNo      Int     @default(1)
+  queryPrefix        String  @default("QRY-")
+  nextQueryNo        Int     @default(1)
   googleCalendarId   String  @default("primary")
   googleSyncUserId   String? // user whose Google account the calendar sync runs as
   googleSyncToken    String?
@@ -164,6 +167,7 @@ model Customer {
   invoices        Invoice[]
   events          CalendarEvent[]
   assets          CustomerAsset[]
+  queries         Query[]
   branchId        String? // the branch that looks after this customer; its documents follow it
   branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
@@ -269,6 +273,7 @@ model JobCard {
   timeEntries           TimeEntry[]
   stockMovements        StockMovement[]
   assetChecks           AssetCheck[]
+  queries               Query[] // queries this job card was raised for (e.g. a re-service)
   invoices              Invoice[]
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())
@@ -567,4 +572,62 @@ model Branch {
   customers Customer[]
   users     User[]
   createdAt DateTime   @default(now())
+}
+
+// ---------- Customer queries ----------
+
+enum QueryStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum QueryPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/** A customer query, complaint or request, tracked until resolved. */
+model Query {
+  id           String        @id @default(cuid())
+  number       String        @unique
+  customerId   String
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  subject      String
+  description  String        @default("")
+  category     String        @default("") // e.g. Complaint, Re-service request, Billing
+  source       String        @default("") // e.g. Phone, Email, WhatsApp
+  priority     QueryPriority @default(NORMAL)
+  status       QueryStatus   @default(OPEN)
+  assignedToId String?
+  assignedTo   User?         @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  dueAt        DateTime?
+  jobCardId    String? // the job card raised to deal with it, or the job it is about
+  jobCard      JobCard?      @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  resolution   String        @default("")
+  resolvedAt   DateTime?
+  createdBy    String        @default("")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  notes        QueryNote[]
+
+  @@index([status])
+  @@index([customerId])
+}
+
+/** Timeline entry on a query: a note, or a recorded change (status, assignment). */
+model QueryNote {
+  id        String   @id @default(cuid())
+  queryId   String
+  query     Query    @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  text      String
+  system    Boolean  @default(false) // true for automatic entries like "Status: Open → Resolved"
+  userName  String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([queryId, createdAt])
 }

@@ -18,7 +18,7 @@ export async function saveSettings(fd: FormData) {
   const textFields = [
     "companyName", "tagline", "email", "phone", "website", "address", "vatNumber", "regNumber",
     "currency", "currencySymbol", "bankName", "bankAccountName", "bankAccountNumber", "bankBranchCode",
-    "quoteTerms", "invoiceTerms", "quotePrefix", "jobCardPrefix", "invoicePrefix", "googleCalendarId",
+    "quoteTerms", "invoiceTerms", "quotePrefix", "jobCardPrefix", "invoicePrefix", "queryPrefix", "googleCalendarId",
     "jobCardTitle", "jobCardSubtitle", "pcoNumber", "warrantyCovers", "warrantyTerms", "labourDescription",
   ] as const;
   const data: Record<string, string | number | boolean | null> = {};
