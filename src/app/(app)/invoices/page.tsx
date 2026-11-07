@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { InvoiceStatus } from "@prisma/client";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { money } from "@/lib/format";
@@ -12,7 +12,7 @@ export const metadata = { title: "Invoices" };
 
 export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; msg?: string }> }) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.view");
   const { status, q = "", msg } = await searchParams;
   const settings = await getSettings();
   const overdue = status === "OVERDUE";

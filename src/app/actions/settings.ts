@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { authDisabled, requireUser } from "@/auth";
+import { authDisabled, requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { num, str } from "@/lib/form";
 import { getSettings } from "@/lib/settings";
@@ -10,7 +10,7 @@ import { parseLogo } from "@/lib/logo";
 
 export async function saveSettings(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("settings.manage");
   await getSettings();
   const textFields = [
     "companyName", "tagline", "email", "phone", "website", "address", "vatNumber", "regNumber",
@@ -43,7 +43,7 @@ export async function saveSettings(fd: FormData) {
 /** Make the signed-in user's Google account the one the calendar sync runs as. */
 export async function useMyGoogleCalendar() {
   const db = await tenantDb();
-  const user = await requireUser();
+  const user = await requirePermission("settings.manage");
   if (authDisabled) redirect("/settings?err=Sign+in+with+Google+first+(demo+mode+has+no+Google+account)");
   const account = await db.account.findFirst({ where: { userId: user.id, provider: "google" } });
   if (!account?.refresh_token) {
@@ -55,14 +55,14 @@ export async function useMyGoogleCalendar() {
 
 export async function disconnectGoogleCalendar() {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("settings.manage");
   await db.settings.update({ where: { id: 1 }, data: { googleSyncUserId: null, googleSyncToken: null } });
   redirect("/settings?msg=Google+Calendar+sync+disconnected");
 }
 
 export async function saveProduct(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("settings.manage");
   const id = str(fd, "id");
   const data = {
     name: str(fd, "name"),
@@ -79,7 +79,7 @@ export async function saveProduct(fd: FormData) {
 
 export async function deleteProduct(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("settings.manage");
   // Job cards keep a text copy of each product, so deleting never changes past job cards.
   await db.product.delete({ where: { id: str(fd, "id") } });
   redirect("/settings?msg=Product+deleted#products");

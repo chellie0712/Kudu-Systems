@@ -3,7 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { JobCardStatus } from "@prisma/client";
-import { requireUser } from "@/auth";
+import { requirePermission, type AppUser } from "@/auth";
+import { can, canAccessJobCard } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { optDate, parseJson, str } from "@/lib/form";
 import { getSettings, nextNumber } from "@/lib/settings";
@@ -47,26 +48,60 @@ async function syncJobCardEvent(jobCardId: string): Promise<string | null> {
   return pushEvent(ev.id);
 }
 
+/** Loads a job card the user may work on, or sends them to /no-access. */
+async function jobCardFor(user: AppUser, id: string) {
+  const db = await tenantDb();
+  const jc = await db.jobCard.findUnique({ where: { id } });
+  if (!jc) redirect("/job-cards?msg=Job+card+not+found");
+  if (!canAccessJobCard(user, jc)) redirect("/no-access?need=jobcards.viewAll");
+  return jc;
+}
+
+/** The technician name printed on the card: what was typed, else the assigned user's name. */
+async function technicianName(technicianId: string | null, typed: string): Promise<string> {
+  if (typed || !technicianId) return typed;
+  const db = await tenantDb();
+  const u = await db.user.findUnique({ where: { id: technicianId }, select: { name: true, email: true } });
+  return u?.name || u?.email || "";
+}
+
 export async function saveJobCard(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  const user = await requirePermission("jobcards.edit");
   const id = str(fd, "id");
+  if (!id && !can(user.role, "jobcards.create")) redirect("/no-access?need=jobcards.create");
+  const before = id ? await jobCardFor(user, id) : null;
+  const canAssign = can(user.role, "jobcards.assign");
   const photos = parseJson<PhotoRef[]>(fd, "photos", []).filter((p) => p && typeof p.id === "string");
   const customerSignature = str(fd, "customerSignature") || null;
 
+  let status = (str(fd, "status") as JobCardStatus) || JobCardStatus.SCHEDULED;
+  if (!(status in JobCardStatus)) status = JobCardStatus.SCHEDULED;
+  // Only the office can cancel a job.
+  if (!canAssign && status === JobCardStatus.CANCELLED) status = before?.status ?? JobCardStatus.SCHEDULED;
+
+  // Who does the job, for whom and when: set by the office. Technicians cannot change these.
+  const technicianId = str(fd, "technicianId") || null;
+  const assignment = canAssign
+    ? {
+        customerId: str(fd, "customerId"),
+        technicianId,
+        technician: await technicianName(technicianId, str(fd, "technician")),
+        jobType: str(fd, "jobType"),
+        priority: str(fd, "priority") || "Normal",
+        scheduledStart: optDate(fd, "scheduledStart"),
+        scheduledEnd: optDate(fd, "scheduledEnd"),
+        scopeOfWork: str(fd, "scopeOfWork"),
+        contactNumber: str(fd, "contactNumber"),
+        siteContact: str(fd, "siteContact"),
+        siteAddress: str(fd, "siteAddress"),
+      }
+    : {};
+
   const data = {
-    customerId: str(fd, "customerId"),
-    status: (str(fd, "status") as JobCardStatus) || JobCardStatus.SCHEDULED,
+    ...assignment,
+    status,
     jobDate: optDate(fd, "jobDate"),
-    technician: str(fd, "technician"),
-    jobType: str(fd, "jobType"),
-    priority: str(fd, "priority") || "Normal",
-    scheduledStart: optDate(fd, "scheduledStart"),
-    scheduledEnd: optDate(fd, "scheduledEnd"),
-    scopeOfWork: str(fd, "scopeOfWork"),
-    contactNumber: str(fd, "contactNumber"),
-    siteContact: str(fd, "siteContact"),
-    siteAddress: str(fd, "siteAddress"),
     areaTreated: str(fd, "areaTreated"),
     workDescription: str(fd, "workDescription"),
     warrantyNo: str(fd, "warrantyNo"),
@@ -80,19 +115,20 @@ export async function saveJobCard(fd: FormData) {
     customerSignName: str(fd, "customerSignName"),
     customerSignature,
   };
-  if (!data.customerId) throw new Error("Choose a customer");
 
   let jcId = id;
-  if (id) {
-    const before = await db.jobCard.findUniqueOrThrow({ where: { id }, select: { customerSignature: true, signedAt: true, number: true } });
+  if (before) {
     // Timestamp the signature when it is first given or re-signed.
     const signedAt = customerSignature ? (customerSignature !== before.customerSignature ? new Date() : before.signedAt) : null;
+    if (canAssign && !assignment.customerId) throw new Error("Choose a customer");
     await db.jobCard.update({ where: { id }, data: { ...data, warrantyNo: data.warrantyNo || before.number, signedAt } });
   } else {
+    if (!assignment.customerId) throw new Error("Choose a customer");
     const number = await nextNumber("jobCard");
     const jc = await db.jobCard.create({
       data: {
         ...data,
+        customerId: assignment.customerId,
         number,
         warrantyNo: data.warrantyNo || number,
         quotationId: str(fd, "quotationId") || null,
@@ -121,9 +157,12 @@ export async function saveJobCard(fd: FormData) {
 
 export async function setJobCardStatus(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  const user = await requirePermission("jobcards.edit");
   const id = str(fd, "id");
+  await jobCardFor(user, id);
   const status = str(fd, "status") as JobCardStatus;
+  if (!(status in JobCardStatus)) redirect(`/job-cards/${id}?err=Unknown+status`);
+  if (status === JobCardStatus.CANCELLED && !can(user.role, "jobcards.assign")) redirect(`/job-cards/${id}?err=Only+the+office+can+cancel+a+job`);
   await db.jobCard.update({ where: { id }, data: { status } });
   await syncJobCardEvent(id);
   revalidatePath(`/job-cards/${id}`);
@@ -132,7 +171,7 @@ export async function setJobCardStatus(fd: FormData) {
 
 export async function deleteJobCard(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("jobcards.delete");
   const id = str(fd, "id");
   const events = await db.calendarEvent.findMany({ where: { jobCardId: id } });
   for (const ev of events) {
@@ -147,7 +186,7 @@ export async function deleteJobCard(fd: FormData) {
 /** Invoice from a job card: copies the linked quotation's lines when there is one. */
 export async function createInvoiceFromJobCard(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.edit");
   const settings = await getSettings();
   const jc = await db.jobCard.findUniqueOrThrow({
     where: { id: str(fd, "id") },

@@ -14,6 +14,13 @@ datasource db {
 
 // ---------- Auth (Auth.js / NextAuth) ----------
 
+// What a user may do: see src/lib/permissions.ts.
+enum Role {
+  ADMIN // everything, including settings and users
+  OFFICE // customers, quotations, job cards, invoices, calendar
+  TECHNICIAN // only the job cards assigned to them; no prices
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -22,6 +29,8 @@ model User {
   image         String?
   passwordHash  String? // set for email + password sign-in
   disabled      Boolean   @default(false)
+  role          Role      @default(OFFICE)
+  jobCards      JobCard[] // job cards assigned to this user as technician
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
@@ -208,7 +217,9 @@ model JobCard {
   status                JobCardStatus   @default(SCHEDULED)
   // 1. Job details
   jobDate               DateTime?
-  technician            String          @default("")
+  technician            String          @default("") // name printed on the job card
+  technicianId          String? // user the job is assigned to (technicians see only their own jobs)
+  technicianUser        User?           @relation(fields: [technicianId], references: [id], onDelete: SetNull)
   jobType               String          @default("")
   priority              String          @default("Normal")
   scheduledStart        DateTime?
@@ -239,6 +250,8 @@ model JobCard {
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
+
+  @@index([technicianId])
 }
 
 enum PhotoKind {

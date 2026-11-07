@@ -1,6 +1,7 @@
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { assignees } from "@/lib/assignees";
 import { PageHeader } from "@/components/ui";
 import { JobCardForm } from "@/components/JobCardForm";
 
@@ -8,12 +9,13 @@ export const metadata = { title: "New job card" };
 
 export default async function NewJobCardPage({ searchParams }: { searchParams: Promise<{ customerId?: string }> }) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("jobcards.create");
   const { customerId } = await searchParams;
   const settings = await getSettings();
-  const [customers, products] = await Promise.all([
+  const [customers, products, people] = await Promise.all([
     db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.product.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    assignees(db),
   ]);
   const c = customerId ? await db.customer.findUnique({ where: { id: customerId } }) : null;
   return (
@@ -26,6 +28,7 @@ export default async function NewJobCardPage({ searchParams }: { searchParams: P
         customers={customers}
         products={products}
         settings={settings}
+        assignees={people}
         defaults={
           c
             ? {

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { Flash, PageHeader } from "@/components/ui";
@@ -12,7 +12,7 @@ export default async function EditInvoicePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ msg?: string }>;
 }) {
-  await requireUser();
+  await requirePermission("invoices.edit");
   const db = await tenantDb();
   const { id } = await params;
   const { msg } = await searchParams;

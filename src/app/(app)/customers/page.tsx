@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { Empty, Flash, PageHeader } from "@/components/ui";
 
@@ -10,7 +10,7 @@ export default async function CustomersPage({
 }: {
   searchParams: Promise<{ q?: string; archived?: string; msg?: string }>;
 }) {
-  await requireUser();
+  await requirePermission("customers.view");
   const db = await tenantDb();
   const { q = "", archived, msg } = await searchParams;
   const showArchived = archived === "1";

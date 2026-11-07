@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { QuotationStatus } from "@prisma/client";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
@@ -12,7 +12,7 @@ import { addDays } from "@/lib/format";
 
 export async function saveQuotation(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("quotations.edit");
   const settings = await getSettings();
   const id = str(fd, "id");
   const items = parseItems(fd);
@@ -50,7 +50,7 @@ export async function saveQuotation(fd: FormData) {
 
 export async function setQuotationStatus(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("quotations.edit");
   const id = str(fd, "id");
   await db.quotation.update({ where: { id }, data: { status: str(fd, "status") as QuotationStatus } });
   revalidatePath(`/quotations/${id}`);
@@ -59,7 +59,7 @@ export async function setQuotationStatus(fd: FormData) {
 
 export async function deleteQuotation(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("quotations.delete");
   const id = str(fd, "id");
   const q = await db.quotation.delete({ where: { id } });
   revalidatePath("/quotations");
@@ -77,7 +77,7 @@ async function markAccepted(id: string) {
 /** Create a job card pre-filled from the quotation, then open it for editing. */
 export async function createJobCardFromQuotation(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("jobcards.create");
   const q = await db.quotation.findUniqueOrThrow({
     where: { id: str(fd, "id") },
     include: { customer: true, items: { orderBy: { sortOrder: "asc" } } },
@@ -107,7 +107,7 @@ export async function createJobCardFromQuotation(fd: FormData) {
 /** Create an invoice that copies the quotation's line items and totals. */
 export async function createInvoiceFromQuotation(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.edit");
   const settings = await getSettings();
   const q = await db.quotation.findUniqueOrThrow({
     where: { id: str(fd, "id") },

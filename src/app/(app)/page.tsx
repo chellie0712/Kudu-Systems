@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { requireUser } from "@/auth";
+import { requireUser, type AppUser } from "@/auth";
+import { can } from "@/lib/permissions";
+import type { TenantDb } from "@/lib/db";
+import { JobCardTable } from "@/components/DocTables";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { addDays, fmtDate, fmtDateTime, money } from "@/lib/format";
@@ -8,6 +11,7 @@ import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 export default async function Dashboard() {
   const db = await tenantDb();
   const user = await requireUser();
+  if (!can(user.role, "dashboard.money")) return <TechnicianHome user={user} db={db} />;
   const settings = await getSettings();
   const sym = settings.currencySymbol;
   const now = new Date();
@@ -122,6 +126,43 @@ export default async function Dashboard() {
             </ul>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** A technician's home page: their open jobs, soonest first. No prices. */
+async function TechnicianHome({ user, db }: { user: AppUser; db: TenantDb }) {
+  const now = new Date();
+  const [open, done] = await Promise.all([
+    db.jobCard.findMany({
+      where: { technicianId: user.id, status: { in: ["SCHEDULED", "IN_PROGRESS"] } },
+      include: { customer: { select: { id: true, name: true } } },
+      orderBy: [{ scheduledStart: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+      take: 50,
+    }),
+    db.jobCard.count({ where: { technicianId: user.id, status: "COMPLETED", updatedAt: { gte: addDays(now, -7) } } }),
+  ]);
+  return (
+    <div>
+      <PageHeader
+        title={`Welcome, ${user.name.split(" ")[0]}`}
+        subtitle={fmtDate(now)}
+        actions={<Link href="/calendar" className="btn-outline">My calendar</Link>}
+      />
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <Link href="/job-cards" className="card border-l-4 border-l-kudu-600 p-5 hover:shadow-md">
+          <div className="text-xs font-semibold uppercase tracking-wide text-charcoal-500">My open jobs</div>
+          <div className="mt-1 text-2xl font-bold">{open.length}</div>
+        </Link>
+        <Link href="/job-cards?status=COMPLETED" className="card border-l-4 border-l-kudu-600 p-5 hover:shadow-md">
+          <div className="text-xs font-semibold uppercase tracking-wide text-charcoal-500">Completed in the last 7 days</div>
+          <div className="mt-1 text-2xl font-bold">{done}</div>
+        </Link>
+      </div>
+      <div className="card overflow-x-auto">
+        <div className="p-5 pb-0"><SectionTitle>My open jobs</SectionTitle></div>
+        <JobCardTable rows={open} linkCustomers={false} empty="No open jobs are assigned to you." />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { InvoiceStatus } from "@prisma/client";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
@@ -26,7 +26,7 @@ async function refreshPaymentStatus(invoiceId: string) {
 
 export async function saveInvoice(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.edit");
   const settings = await getSettings();
   const id = str(fd, "id");
   const items = parseItems(fd);
@@ -63,7 +63,7 @@ export async function saveInvoice(fd: FormData) {
 
 export async function setInvoiceStatus(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.edit");
   const id = str(fd, "id");
   await db.invoice.update({ where: { id }, data: { status: str(fd, "status") as InvoiceStatus } });
   if (str(fd, "status") !== InvoiceStatus.CANCELLED) await refreshPaymentStatus(id);
@@ -73,7 +73,7 @@ export async function setInvoiceStatus(fd: FormData) {
 
 export async function recordPayment(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("payments.record");
   const invoiceId = str(fd, "invoiceId");
   const amount = cents(fd, "amount");
   if (amount <= 0) redirect(`/invoices/${invoiceId}?err=Enter+a+payment+amount`);
@@ -93,7 +93,7 @@ export async function recordPayment(fd: FormData) {
 
 export async function deletePayment(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("payments.delete");
   const p = await db.payment.delete({ where: { id: str(fd, "id") } });
   await refreshPaymentStatus(p.invoiceId);
   revalidatePath(`/invoices/${p.invoiceId}`);
@@ -102,7 +102,7 @@ export async function deletePayment(fd: FormData) {
 
 export async function deleteInvoice(fd: FormData) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("invoices.delete");
   const inv = await db.invoice.delete({ where: { id: str(fd, "id") } });
   revalidatePath("/invoices");
   redirect(`/customers/${inv.customerId}?tab=invoices&msg=Invoice+deleted`);

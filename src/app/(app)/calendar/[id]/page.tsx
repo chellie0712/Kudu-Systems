@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { deleteEvent } from "@/app/actions/calendar";
 import { Flash, PageHeader } from "@/components/ui";
@@ -8,7 +8,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 
 export default async function EventPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ msg?: string; err?: string }> }) {
   const db = await tenantDb();
-  await requireUser();
+  await requirePermission("calendar.edit");
   const { id } = await params;
   const { msg, err } = await searchParams;
   const [event, customers] = await Promise.all([

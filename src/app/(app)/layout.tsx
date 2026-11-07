@@ -3,6 +3,7 @@ import { Nav } from "@/components/Nav";
 import { authDisabled, requireUser, signOut } from "@/auth";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { getSettings } from "@/lib/settings";
+import { ROLE_LABELS } from "@/lib/permissions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -19,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           <span className="hidden text-right leading-tight text-charcoal-600 sm:inline">
             {user.name}
-            <span className="block text-xs text-charcoal-400">{settings.companyName}</span>
+            <span className="block text-xs text-charcoal-400">{settings.companyName} · {ROLE_LABELS[user.role]}</span>
           </span>
           {!authDisabled && (
             <form
@@ -35,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <div className="flex flex-1 flex-col md:flex-row">
         <aside className="no-print bg-charcoal-800 md:w-56 md:shrink-0">
-          <Nav />
+          <Nav role={user.role} />
         </aside>
         <main className="print-main min-w-0 flex-1 p-4 md:p-8">{children}</main>
       </div>

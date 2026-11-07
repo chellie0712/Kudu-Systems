@@ -69,8 +69,8 @@ export async function createCompany(fd: FormData) {
       const passwordHash = await bcrypt.hash(adminPassword, 12);
       await db.user.upsert({
         where: { email: adminEmail },
-        update: { passwordHash, disabled: false },
-        create: { email: adminEmail, name: adminName || "Administrator", passwordHash },
+        update: { passwordHash, disabled: false, role: "ADMIN" },
+        create: { email: adminEmail, name: adminName || "Administrator", passwordHash, role: "ADMIN" },
       });
     } finally {
       await db.$disconnect();
@@ -126,7 +126,8 @@ export async function addCompanyUser(fd: FormData) {
   if (password.length < 10) back(path, "err", "Passwords need at least 10 characters.", "#users");
   const db = await companyDb(id);
   if (await db.user.findUnique({ where: { email } })) back(path, "err", `${email} is already a user of this company.`, "#users");
-  await db.user.create({ data: { email, name: str(fd, "name") || email, passwordHash: await bcrypt.hash(password, 12) } });
+  // Users added by the super-admin are the company's admins; they add their own staff in Settings → Users.
+  await db.user.create({ data: { email, name: str(fd, "name") || email, passwordHash: await bcrypt.hash(password, 12), role: "ADMIN" } });
   back(path, "msg", `${email} can now sign in.`, "#users");
 }
 

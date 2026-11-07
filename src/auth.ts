@@ -4,10 +4,12 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { MAIN_COMPANY_ID, getCompany, getCompanyBySlug, platformDb, type Company } from "@/lib/platform";
 import { clientForCompany } from "@/lib/tenant";
+import { can, type Permission, type Role } from "@/lib/permissions";
 
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
@@ -52,8 +54,8 @@ async function authorizeCompanyUser(company: Company, email: string, password: s
   const passwordHash = await bcrypt.hash(password, 12);
   const created = await db.user.upsert({
     where: { email },
-    update: { passwordHash, disabled: false },
-    create: { email, name: "Administrator", passwordHash },
+    update: { passwordHash, disabled: false, role: "ADMIN" },
+    create: { email, name: "Administrator", passwordHash, role: "ADMIN" },
   });
   return signedIn(created);
 }
@@ -185,7 +187,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async (req) => {
   return buildConfig(googleTenant);
 });
 
-export type AppUser = { id: string; name: string; email: string; image?: string | null };
+export type AppUser = { id: string; name: string; email: string; image?: string | null; role: Role };
 
 /** Local demo mode: only honoured outside production. Uses the main company. */
 export const authDisabled = process.env.AUTH_DISABLED === "true" && process.env.NODE_ENV !== "production";
@@ -201,9 +203,12 @@ export async function getSessionCompanyId(): Promise<string | null> {
   return session.companyId ?? MAIN_COMPANY_ID;
 }
 
-/** The signed-in, enabled user of an active company, or null. */
-export async function getUser(): Promise<AppUser | null> {
-  if (authDisabled) return { id: "local-demo", name: "Demo User", email: "demo@localhost" };
+/** The signed-in, enabled user of an active company, or null. Looked up once per request. */
+export const getUser = cache(async (): Promise<AppUser | null> => {
+  if (authDisabled) {
+    const demoRole = process.env.DEMO_ROLE;
+    return { id: "local-demo", name: "Demo User", email: "demo@localhost", role: demoRole === "OFFICE" || demoRole === "TECHNICIAN" ? demoRole : "ADMIN" };
+  }
   const session = (await auth()) as AppSession;
   const companyId = await getSessionCompanyId();
   if (!session?.user?.id || !companyId) return null;
@@ -212,13 +217,23 @@ export async function getUser(): Promise<AppUser | null> {
   // JWT sessions outlive changes in the database, so re-check the account on each request.
   const user = await clientForCompany(company).user.findUnique({ where: { id: session.user.id } });
   if (!user || user.disabled) return null;
-  return { id: user.id, name: user.name ?? user.email ?? "", email: user.email ?? "", image: user.image };
-}
+  return { id: user.id, name: user.name ?? user.email ?? "", email: user.email ?? "", image: user.image, role: user.role };
+});
 
 /** Use at the top of every page and server action. */
 export async function requireUser(): Promise<AppUser> {
   const user = await getUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+/**
+ * Use at the top of a page or server action that needs a permission (see src/lib/permissions.ts).
+ * Someone signed in without it is sent to /no-access.
+ */
+export async function requirePermission(permission: Permission): Promise<AppUser> {
+  const user = await requireUser();
+  if (!can(user.role, permission)) redirect(`/no-access?need=${permission}`);
   return user;
 }
 

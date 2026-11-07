@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser } from "@/auth";
+import { requirePermission } from "@/auth";
+import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDate } from "@/lib/format";
@@ -21,7 +22,7 @@ export default async function QuotationPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ msg?: string; err?: string }>;
 }) {
-  await requireUser();
+  const user = await requirePermission("quotations.view");
   const db = await tenantDb();
   const { id } = await params;
   const { msg, err } = await searchParams;
@@ -127,10 +128,12 @@ export default async function QuotationPage({
         </div>
       </article>
 
-      <form action={deleteQuotation} className="no-print mx-auto mt-6 max-w-4xl text-right">
-        <input type="hidden" name="id" value={q.id} />
-        <ConfirmButton message={`Delete quotation ${q.number}? Linked job cards and invoices are kept.`}>Delete quotation</ConfirmButton>
-      </form>
+      {can(user.role, "quotations.delete") && (
+        <form action={deleteQuotation} className="no-print mx-auto mt-6 max-w-4xl text-right">
+          <input type="hidden" name="id" value={q.id} />
+          <ConfirmButton message={`Delete quotation ${q.number}? Linked job cards and invoices are kept.`}>Delete quotation</ConfirmButton>
+        </form>
+      )}
     </div>
   );
 }
