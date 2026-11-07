@@ -11,8 +11,10 @@ import { Field, Flash, PageHeader, SectionTitle, StatusBadge } from "@/component
 import { InvoiceSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 import { invoiceDisplayStatus } from "@/components/DocTables";
-import { sageReady } from "@/lib/sage";
-import { checkSagePayments, sendInvoiceToSageNow } from "@/app/actions/sage";
+import { shortName } from "@/lib/accounting";
+import { linkKey } from "@/lib/accounting/store";
+import { linkReady } from "@/lib/accounting/sync";
+import { checkAccountingPayments, sendInvoiceToAccountingNow } from "@/app/actions/accounting";
 
 export default async function InvoicePage({
   params,
@@ -44,9 +46,16 @@ export default async function InvoicePage({
   const status = invoiceDisplayStatus(inv);
   const approval = approvalState(inv, settings);
   const canApprove = can(user.role, "invoices.approve");
-  const sage = sageReady(settings);
-  const unsentPayments = inv.payments.filter((p) => !p.sageId && !p.fromSage).length;
-  const beforeSageStart = !inv.sageId && !!settings.sageStartDate && inv.issueDate < settings.sageStartDate;
+  // Accounting package (Settings → Accounting). Pastel is by file, so it has no buttons here.
+  const acctProvider = settings.accountingProvider;
+  const acctRow = acctProvider ? await db.accountingLink.findUnique({ where: { provider: acctProvider } }) : null;
+  const acct = linkReady(settings, acctRow);
+  const acctKey = acctRow ? linkKey({ provider: acctProvider, orgId: acctRow.orgId }) : "";
+  const acctWho = shortName(inv.acctLink || acctProvider);
+  const inBooks = !!inv.acctId && (!acctKey || inv.acctLink === acctKey);
+  const isPastel = (inv.acctLink || acctProvider).startsWith("pastel");
+  const unsentPayments = inv.payments.filter((p) => !p.fromAccounting && !(p.acctId && p.acctLink === inv.acctLink)).length;
+  const beforeStart = !inBooks && !!settings.acctStartDate && inv.issueDate < settings.acctStartDate;
 
   return (
     <div>
@@ -85,29 +94,31 @@ export default async function InvoicePage({
         </span>
       </div>
 
-      {(sage || inv.sageId) && inv.status !== "DRAFT" && (
-        <div className={`no-print mb-4 flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${inv.sageError ? "border-amber-200 bg-amber-50" : "border-charcoal-200 bg-white"}`}>
+      {(acct || isPastel || inv.acctId || inv.acctError) && acctProvider !== "" && inv.status !== "DRAFT" && (
+        <div className={`no-print mb-4 flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${inv.acctError ? "border-amber-200 bg-amber-50" : "border-charcoal-200 bg-white"}`}>
           <span>
-            <b>Sage:</b>{" "}
-            {inv.sageId
-              ? <>sent as {inv.sageNumber || inv.number}{inv.sageSentAt && ` on ${fmtDateTime(inv.sageSentAt)}`}{unsentPayments > 0 && `, ${unsentPayments} payment${unsentPayments === 1 ? "" : "s"} not yet sent`}.</>
-              : beforeSageStart ? "not sent (issued before the Sage start date in Settings, so assumed to be in Sage already)." : "not sent yet."}
-            {inv.sageError && <span className="block text-kudu-700">{inv.sageError}</span>}
+            <b>{acctWho}:</b>{" "}
+            {inBooks
+              ? <>{isPastel ? "exported" : "sent"} as {inv.acctNumber || inv.number}{inv.acctSentAt && ` on ${fmtDateTime(inv.acctSentAt)}`}{!isPastel && unsentPayments > 0 && `, ${unsentPayments} payment${unsentPayments === 1 ? "" : "s"} not yet sent`}.</>
+              : beforeStart ? `not sent (issued before the start date in Settings → Accounting, so assumed to be in ${acctWho} already).` : isPastel ? "not exported yet (Settings → Accounting)." : "not sent yet."}
+            {inv.acctError && <span className="block text-kudu-700">{inv.acctError}</span>}
           </span>
-          <span className="ml-auto flex gap-2">
-            {sage && inv.sageId && (inv.status === "SENT" || inv.status === "PARTIALLY_PAID") && (
-              <form action={checkSagePayments}>
-                <input type="hidden" name="id" value={inv.id} />
-                <button className="btn-outline py-1 text-xs">Check Sage for payments</button>
-              </form>
-            )}
-            {sage && inv.status !== "CANCELLED" && can(user.role, "invoices.edit") && (
-              <form action={sendInvoiceToSageNow}>
-                <input type="hidden" name="id" value={inv.id} />
-                <button className="btn-outline py-1 text-xs">{inv.sageId ? "Send again to Sage" : "Send to Sage"}</button>
-              </form>
-            )}
-          </span>
+          {acct && !isPastel && (
+            <span className="ml-auto flex gap-2">
+              {inBooks && (inv.status === "SENT" || inv.status === "PARTIALLY_PAID") && (
+                <form action={checkAccountingPayments}>
+                  <input type="hidden" name="id" value={inv.id} />
+                  <button className="btn-outline py-1 text-xs">Check {acctWho} for payments</button>
+                </form>
+              )}
+              {inv.status !== "CANCELLED" && can(user.role, "invoices.edit") && (
+                <form action={sendInvoiceToAccountingNow}>
+                  <input type="hidden" name="id" value={inv.id} />
+                  <button className="btn-outline py-1 text-xs">{inBooks ? `Send again to ${acctWho}` : `Send to ${acctWho}`}</button>
+                </form>
+              )}
+            </span>
+          )}
         </div>
       )}
 
@@ -179,8 +190,8 @@ export default async function InvoicePage({
                   <li key={p.id} className="flex items-center justify-between py-2">
                     <div>
                       <div className="font-medium">{money(p.amount, sym)}</div>
-                      <div className="text-xs text-charcoal-500">{fmtDate(p.date)} · {p.method}{p.reference && ` · ${p.reference}`}{p.sageId && " · in Sage"}{p.fromSage && " · from Sage"}</div>
-                      {p.sageError && <div className="text-xs text-kudu-700">Sage: {p.sageError}</div>}
+                      <div className="text-xs text-charcoal-500">{fmtDate(p.date)} · {p.method}{p.reference && ` · ${p.reference}`}{p.acctId && !p.fromAccounting && ` · in ${shortName(p.acctLink)}`}{p.fromAccounting && ` · from ${shortName(p.acctLink)}`}</div>
+                      {p.acctError && <div className="text-xs text-kudu-700">{shortName(p.acctLink || acctProvider)}: {p.acctError}</div>}
                     </div>
                     {can(user.role, "payments.delete") && (
                       <form action={deletePayment}>

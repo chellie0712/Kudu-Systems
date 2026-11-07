@@ -118,20 +118,14 @@ model Settings {
   googleAdsCurrency      String    @default("")
   googleAdsLastSyncAt    DateTime?
   googleAdsLastError     String    @default("")
-  // Sage Business Cloud Accounting (South Africa), see src/lib/sage.ts
-  sageUsername           String    @default("") // the Sage user Kudu signs in as
-  sagePassword           String? // encrypted with AUTH_SECRET
-  sageCompanyId          Int?
-  sageCompanyName        String    @default("")
-  sageTaxTypeId          Int? // Sage tax type for standard-rated lines (15%)
-  sageZeroTaxTypeId      Int? // Sage tax type for invoices with 0% VAT
-  sageItemId             Int? // Sage item/service every invoice line is posted as
-  sageItemName           String    @default("")
-  sageBankAccountId      Int? // where payments recorded in Kudu are banked in Sage
-  sageUseKuduNumbers     Boolean   @default(true) // Sage invoice number = Kudu invoice number
-  sageAutoSend           Boolean   @default(true) // send invoices and payments as soon as they are issued/recorded
-  sageStartDate          DateTime? // only invoices issued from this day are sent (older ones are already in Sage)
-  sageLastError          String    @default("")
+  // Accounting package link (src/lib/accounting). One package per company at a time;
+  // its login/tokens and choices are in AccountingLink.
+  accountingProvider     String    @default("") // "", sage, xero, quickbooks, zoho, freshbooks, odoo, pastel
+  acctUseKuduNumbers     Boolean   @default(true) // the package's invoice number = Kudu's invoice number
+  acctAutoSend           Boolean   @default(true) // send invoices and payments as soon as they are issued/recorded
+  acctStartDate          DateTime? // only invoices issued from this day are sent (older ones are already in the package)
+  acctLastError          String    @default("")
+  acctLastSyncAt         DateTime?
   // Job card & service warranty
   jobCardTitle       String  @default("Job Card & Service Warranty")
   jobCardSubtitle    String  @default("Registered Pest Control Operator")
@@ -192,7 +186,8 @@ model Customer {
   portalUsers     PortalUser[] // the customer's logins to the customer portal
   leadSource      String          @default("") // how they found us, e.g. "Google Ads" (see src/lib/marketing.ts)
   leadCampaign    String          @default("") // the ad campaign, matched to AdSpend.campaign
-  sageId          Int? // the customer's ID in Sage, once sent
+  acctLink        String          @default("") // "provider:organisation" the acctId belongs to
+  acctId          String? // the customer's ID (Pastel: account code) in the accounting package
   branchId        String? // the branch that looks after this customer; its documents follow it
   branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
@@ -475,6 +470,18 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+/// The company's login to an accounting package and its choices (tax types, accounts...).
+/// One row per package, so switching back keeps the earlier setup.
+model AccountingLink {
+  provider    String   @id
+  credentials String? // JSON, encrypted with AUTH_SECRET: tokens, password or API key
+  orgId       String   @default("") // organisation/company/tenant in the package
+  orgName     String   @default("")
+  config      Json     @default("{}") // picker values, see each adapter's pickers()
+  connectedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Invoice {
   id          String        @id @default(cuid())
   number      String        @unique
@@ -506,14 +513,17 @@ model Invoice {
   payments    Payment[]
   timeEntries TimeEntry[] // labour billed on this invoice
   stockMovements      StockMovement[] // materials billed on this invoice
-  sageId          Int? // tax invoice ID in Sage, once sent
-  sageNumber      String    @default("")
-  sageSentAt      DateTime?
-  sageHash        String    @default("") // fingerprint of what was sent, to resend only real changes
-  sageCheckedAt   DateTime? // last time Sage was asked for payments on it
-  sageError       String    @default("")
+  acctLink        String    @default("") // "provider:organisation" the acctId belongs to
+  acctId          String? // the invoice's ID in the accounting package, once sent (or exported)
+  acctNumber      String    @default("")
+  acctSentAt      DateTime?
+  acctHash        String    @default("") // fingerprint of what was sent, to resend only real changes
+  acctCheckedAt   DateTime? // last time the package was asked for payments on it
+  acctError       String    @default("")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([acctLink, acctId])
 }
 
 model InvoiceItem {
@@ -535,9 +545,10 @@ model Payment {
   date      DateTime @default(now())
   method    String   @default("EFT")
   reference String   @default("")
-  sageId    Int? // customer receipt ID in Sage, once sent
-  fromSage  Boolean  @default(false) // captured in Sage and brought into Kudu (never sent back)
-  sageError String   @default("")
+  acctLink  String   @default("") // "provider:organisation" the acctId belongs to
+  acctId    String? // the payment's ID in the accounting package, once sent (or the import key)
+  fromAccounting Boolean @default(false) // captured in the accounting package and brought into Kudu (never sent back)
+  acctError String   @default("")
   createdAt DateTime @default(now())
 }
 
