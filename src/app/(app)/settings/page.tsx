@@ -26,6 +26,7 @@ import { Field, Flash, PageHeader, SectionTitle } from "@/components/ui";
 import { googleAdsConfigured } from "@/lib/googleAds";
 import { disconnectGoogleAds, saveGoogleAdsAccount, syncGoogleAdsNow } from "@/app/actions/marketing";
 import { fmtDateTime } from "@/lib/format";
+import { SageSettings } from "@/components/SageSettings";
 
 export const metadata = { title: "Settings" };
 
@@ -432,6 +433,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <button className="btn-primary py-1.5">+ Add product</button>
         </form>
       </div>
+
+      <SageSettings s={s} />
 
       <div id="google-ads" className="card mt-6 space-y-3 p-6">
         <SectionTitle>Google Ads</SectionTitle>

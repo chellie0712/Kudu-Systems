@@ -177,6 +177,23 @@ One-time platform setup (the Google Cloud project behind Kudu, not per company):
 
 Refresh tokens are stored encrypted with `AUTH_SECRET` in each company's own database.
 
+## Sage Accounting (South Africa)
+
+Links each company's Kudu with its own **Sage Business Cloud Accounting** (the South African edition, formerly Sage One), both ways:
+
+- **Kudu → Sage:** when an invoice is issued (marked as sent, after approval if that is on) the customer is created or updated in Sage and the invoice is saved as a Sage tax invoice with the same lines, VAT and number. Payments recorded in Kudu go to Sage as customer receipts and are allocated to their invoice. Editing an invoice that is already in Sage updates it there. Removing a payment in Kudu deletes its receipt in Sage.
+- **Sage → Kudu:** every night (and with "Check Sage for payments") Kudu asks Sage what is still owed on open invoices it sent. Money paid in Sage that Kudu doesn't know about, for example a receipt from the bank feed, is added to the Kudu invoice as a payment "from Sage".
+- Drafts are never sent: Sage has no draft invoices. Cancelling an invoice in Kudu does not touch Sage: issue a credit note there.
+- Invoices issued before the "send invoices issued from" date (default: the day Sage was connected) are assumed to be in Sage already. "Send to Sage" on an invoice sends it anyway.
+- Each invoice shows its Sage status and any error; each payment shows "in Sage" or "from Sage".
+
+Setup:
+
+1. **Once, for the platform:** apply for a Sage Accounting API key (enrollment form and licence agreement on Sage's South African developer page). Set `SAGE_API_KEY` in Vercel and `CRON_SECRET` (shared with the Google Ads job). For Sage's sandbox, set `SAGE_API_URL=https://resellers.accounting.sageone.co.za/api/2.0.0`; the default is `https://accounting.sageone.co.za/api/2.0.0`.
+2. **Per company,** Settings → Sage: enter the login of a Sage user (best a separate user just for Kudu), choose the Sage company, the VAT types for 15% and 0% invoices, the Sage item/service whose sales account the lines post to, and the bank account for receipts.
+
+The Sage password is stored encrypted with `AUTH_SECRET` in the company's own database. Sage allows 100 requests a minute and 5,000 a day per company; the nightly check reads at most 90 invoices per run.
+
 ## Branches
 
 Optional; nothing changes until you add one in **Settings → Branches** (name, address, phone, email). Then:

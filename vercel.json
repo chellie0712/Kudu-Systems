@@ -1,3 +1,6 @@
 {
-  "crons": [{ "path": "/api/cron/google-ads", "schedule": "0 4 * * *" }]
+  "crons": [
+    { "path": "/api/cron/google-ads", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/sage", "schedule": "30 4 * * *" }
+  ]
 }
