@@ -19,6 +19,7 @@ import { PcoBlock } from "@/components/JobCardForm";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 import { branchContact } from "@/components/Document";
 import { isOpen } from "@/lib/queries";
+import { Stars } from "@/components/SignOff";
 
 function Item({ k, v, className = "" }: { k: string; v?: React.ReactNode; className?: string }) {
   return (
@@ -135,8 +136,8 @@ export default async function JobCardPage({
               <button className="btn-outline py-1 text-xs">{s.replace("_", " ").toLowerCase()}</button>
             </form>
           ))}
-        {j.status !== "COMPLETED" && (
-          <Link href={`/job-cards/${j.id}/edit`} className="btn-outline py-1 text-xs">complete &amp; sign off</Link>
+        {j.status !== "COMPLETED" && j.status !== "CANCELLED" && may("jobcards.edit") && (
+          <Link href={`/sign/${j.id}`} className="btn-primary py-1 text-xs">Client sign-off on this phone</Link>
         )}
         {customStatuses.length > 0 && (
           <form action={setJobCardStatus} className="flex items-center gap-1">
@@ -309,6 +310,13 @@ export default async function JobCardPage({
                 <div className="mt-1 text-xs text-charcoal-500">Client signature{j.signedAt && ` · signed ${fmtDateTime(j.signedAt)}`}</div>
               </div>
             </div>
+            {(j.customerRating || j.customerFeedback) && (
+              <div className="no-print rounded-md bg-charcoal-50 p-3 text-sm">
+                <div className="text-xs font-semibold text-charcoal-500">Client feedback at sign-off (not printed)</div>
+                {j.customerRating && <div className="text-lg"><Stars rating={j.customerRating} /></div>}
+                {j.customerFeedback && <p className="whitespace-pre-line italic">“{j.customerFeedback}”</p>}
+              </div>
+            )}
             <PcoBlock settings={settings} />
           </div>
         </NumberedSection>
