@@ -11,12 +11,17 @@ export function SignaturePad({
   label,
   placeholder = "Sign here with your finger",
   allowUpload = false,
+  height = 180,
+  canvasClassName = "h-40",
 }: {
   name: string;
   initial?: string | null;
   label: string;
   placeholder?: string;
   allowUpload?: boolean;
+  /** Drawing height in canvas pixels (the width is 600); match it to the shown height to avoid stretched strokes. */
+  height?: number;
+  canvasClassName?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -53,8 +58,8 @@ export function SignaturePad({
         <canvas
           ref={canvasRef}
           width={600}
-          height={180}
-          className="h-40 w-full touch-none rounded-md border border-charcoal-200 bg-white"
+          height={height}
+          className={`${canvasClassName} w-full touch-none rounded-md border border-charcoal-200 bg-white`}
           onPointerDown={(e) => {
             drawing.current = true;
             e.currentTarget.setPointerCapture(e.pointerId);

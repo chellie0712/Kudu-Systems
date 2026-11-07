@@ -290,3 +290,55 @@ export async function createInvoiceFromJobCard(fd: FormData) {
       : `/invoices/${inv.id}/edit?msg=Invoice+created.+Add+the+line+items.`,
   );
 }
+
+/**
+ * The client signs off a job on the technician's phone: records the signature, confirmation, rating
+ * and comment, marks the job completed and stops any timer still running on it.
+ */
+export async function signOffJobCard(fd: FormData) {
+  const db = await tenantDb();
+  const user = await requirePermission("jobcards.edit");
+  const jc = await jobCardFor(user, str(fd, "id"));
+  const path = `/sign/${jc.id}`;
+  const fail = (text: string): never => redirect(`${path}?err=${encodeURIComponent(text)}`);
+  if (jc.status === JobCardStatus.CANCELLED) fail("This job was cancelled and can't be signed off.");
+
+  const lists = await db.jobCardChecklist.findMany({ where: { jobCardId: jc.id } });
+  const unfinished = incompleteRequired(lists.map((l) => ({ ...l, items: parseItems(l.items) })));
+  const signature = str(fd, "customerSignature");
+  const name = str(fd, "customerSignName");
+  const missing = [
+    !jc.workDescription.trim() && "describe the work done on the job card",
+    unfinished.length > 0 && `finish the ${unfinished.join(", ")} checklist${unfinished.length > 1 ? "s" : ""}`,
+    !name && "enter the client's name",
+    !signature.startsWith("data:image/") && "get the client's signature",
+    fd.get("clientConfirmed") !== "on" && "tick the confirmation box",
+  ].filter(Boolean);
+  if (missing.length) fail(`Before sign-off, please ${missing.join(", ")}.`);
+
+  const stars = Number(str(fd, "rating"));
+  const now = new Date();
+  await db.jobCard.update({
+    where: { id: jc.id },
+    data: {
+      clientConfirmed: true,
+      customerSignName: name,
+      customerSignature: signature,
+      signedAt: now,
+      customerRating: Number.isInteger(stars) && stars >= 1 && stars <= 5 ? stars : null,
+      customerFeedback: str(fd, "feedback").slice(0, 2000),
+      status: JobCardStatus.COMPLETED,
+      statusId: null,
+      jobDate: jc.jobDate ?? now,
+      warrantyNo: jc.warrantyNo || jc.number,
+    },
+  });
+  // The job is finished, so nobody is still working on it.
+  await db.timeEntry.updateMany({ where: { jobCardId: jc.id, end: null }, data: { end: now } });
+  await syncJobCardEvent(jc.id);
+  revalidatePath("/job-cards");
+  revalidatePath(`/job-cards/${jc.id}`);
+  revalidatePath("/calendar");
+  revalidatePath("/");
+  redirect(`${path}?done=1`);
+}

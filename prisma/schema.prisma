@@ -274,6 +274,8 @@ model JobCard {
   stockMovements        StockMovement[]
   assetChecks           AssetCheck[]
   queries               Query[] // queries this job card was raised for (e.g. a re-service)
+  customerRating        Int? // 1-5 stars given by the client at sign-off
+  customerFeedback      String          @default("") // the client's comment at sign-off
   invoices              Invoice[]
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())

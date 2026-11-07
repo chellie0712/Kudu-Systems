@@ -2,10 +2,10 @@ import Link from "next/link";
 import { requireUser, type AppUser } from "@/auth";
 import { can } from "@/lib/permissions";
 import type { TenantDb } from "@/lib/db";
-import { JobCardTable } from "@/components/DocTables";
+import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { addDays, fmtDate, fmtDateTime, money } from "@/lib/format";
+import { addDays, dayKey, fmtDate, fmtDateTime, money } from "@/lib/format";
 import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 import { stockOverview } from "@/lib/inventory";
 import { currentBranchId, getBranches } from "@/lib/branch";
@@ -197,10 +197,41 @@ async function TechnicianHome({ user, db }: { user: AppUser; db: TenantDb }) {
           <div className="mt-1 text-2xl font-bold">{done}</div>
         </Link>
       </div>
-      <div className="card overflow-x-auto">
-        <div className="p-5 pb-0"><SectionTitle>My open jobs</SectionTitle></div>
-        <JobCardTable rows={open} linkCustomers={false} empty="No open jobs are assigned to you." />
-      </div>
+      <SectionTitle>My open jobs</SectionTitle>
+      {open.length === 0 ? (
+        <div className="card p-5 text-sm text-charcoal-500">No open jobs are assigned to you.</div>
+      ) : (
+        <ul className="grid gap-3 lg:grid-cols-2">
+          {open.map((j) => {
+            const today = j.scheduledStart && dayKey(j.scheduledStart) === dayKey(now);
+            const phone = j.contactNumber.replace(/[^\d+]/g, "");
+            return (
+              <li key={j.id} className={`card p-4 ${today ? "border-l-4 border-l-kudu-600" : ""}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link href={`/job-cards/${j.id}`} className="font-bold text-kudu-700 hover:underline">{j.number}</Link>
+                  <JobStatusBadge status={j.status} custom={j.customStatus} />
+                </div>
+                <div className="mt-1 text-sm font-semibold">{j.customer.name}</div>
+                <div className="text-sm text-charcoal-600">
+                  {[j.scheduledStart ? `${today ? "Today " : ""}${fmtDateTime(j.scheduledStart)}` : "Not scheduled", j.jobType].filter(Boolean).join(" · ")}
+                </div>
+                {j.siteAddress && <div className="mt-1 text-sm whitespace-pre-line text-charcoal-700">{j.siteAddress}</div>}
+                {(j.siteContact || j.contactNumber) && <div className="text-sm text-charcoal-600">{[j.siteContact, j.contactNumber].filter(Boolean).join(" · ")}</div>}
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {phone ? <a href={`tel:${phone}`} className="btn-outline py-2 text-center">Call</a> : <span className="btn-outline pointer-events-none py-2 text-center opacity-40">Call</span>}
+                  {j.siteAddress ? (
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(j.siteAddress)}`} target="_blank" rel="noreferrer" className="btn-outline py-2 text-center">Map</a>
+                  ) : (
+                    <span className="btn-outline pointer-events-none py-2 text-center opacity-40">Map</span>
+                  )}
+                  <Link href={`/job-cards/${j.id}/edit`} className="btn-outline py-2 text-center">Fill in</Link>
+                  <Link href={`/sign/${j.id}`} className="btn-primary py-2 text-center">Sign-off</Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
