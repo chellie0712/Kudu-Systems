@@ -105,6 +105,12 @@ Every user has one role. The rules live in `src/lib/permissions.ts`; pages, serv
 
 **Forms & checklists** (Settings → Forms & checklists): a checklist is a list of items, one per line. It can be added to every job card, to job cards of one job type, or by hand on the job card. Technicians tick items and add notes on their own job cards; the checklist prints on the job card. "All items must be ticked to complete the job" stops a job being marked Completed (in the form and on the server) until every item is ticked. Job cards keep their own copy, so editing or deleting a template never changes past jobs. A "Safety checklist" example is added on first deploy.
 
+## Job time tracking and labour billing
+
+**Time on a job card** (the "Time on this job" box on the job card page): anyone who can open the job card can start and stop a timer (one running timer per person; starting another stops the first) or add time by hand (date, from, to, note). Technicians record only their own time and never see rates or amounts. Office and admins can record time for anyone, mark entries billable or not, stop someone's timer and delete unbilled entries.
+
+**Labour billing** (Settings → Labour billing): a company hourly rate excl. VAT, the invoice line wording, and rounding (time is rounded up per person, default 15 minutes; 0 bills exact minutes). A person can have their own rate in Settings → Users & roles. "Create invoice" on a job card now adds the unbilled time as labour lines (one per rate) after the quotation's lines, and marks that time billed. Time recorded later can be added to the job's draft invoice with "Add labour to draft invoice". Deleting an invoice makes its time unbilled again.
+
 ## Google sign-in and Calendar sync
 
 You need one OAuth client from Google Cloud. About 10 minutes:

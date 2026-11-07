@@ -10,6 +10,7 @@ import { lines } from "@/lib/jobcard";
 import { createInvoiceFromJobCard, deleteJobCard, setJobCardStatus } from "@/app/actions/jobCards";
 import { Flash, NumberedSection, PageHeader } from "@/components/ui";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
+import { TimeSection } from "@/components/TimeSection";
 import { CUSTOM_PREFIX } from "@/lib/jobStatus";
 import { parseItems } from "@/lib/checklists";
 import { PcoBlock } from "@/components/JobCardForm";
@@ -44,7 +45,8 @@ export default async function JobCardPage({
         photos: { select: { id: true, kind: true }, orderBy: { sortOrder: "asc" } },
         customStatus: { select: { name: true, colour: true } },
         checklists: { orderBy: { sortOrder: "asc" } },
-        invoices: { select: { id: true, number: true } },
+        invoices: { select: { id: true, number: true, status: true } },
+        timeEntries: { orderBy: { start: "asc" }, include: { invoice: { select: { id: true, number: true } } } },
         events: { select: { googleEventId: true } },
       },
     }),
@@ -61,6 +63,13 @@ export default async function JobCardPage({
     where: { active: true, id: { not: j.statusId ?? "" }, ...(may("jobcards.assign") ? {} : { stage: { not: "CANCELLED" } }) },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
+  const people = may("time.manageAll")
+    ? (await db.user.findMany({ where: { disabled: false }, select: { id: true, name: true, email: true, labourRate: true }, orderBy: { name: "asc" } })).map((u) => ({
+        id: u.id,
+        name: u.name || u.email || "",
+        labourRate: u.labourRate,
+      }))
+    : [];
   const checklists = j.checklists.map((l) => ({ ...l, items: parseItems(l.items) }));
   // Section numbers shift with the optional sections.
   let section = 3;
@@ -267,6 +276,15 @@ export default async function JobCardPage({
           </div>
         </NumberedSection>
       </article>
+
+      <TimeSection
+        jobCardId={j.id}
+        entries={j.timeEntries}
+        user={user}
+        people={people}
+        settings={settings}
+        hasDraftInvoice={j.invoices.some((i) => i.status === "DRAFT")}
+      />
 
       {may("jobcards.delete") && (
         <form action={deleteJobCard} className="no-print mx-auto mt-6 max-w-3xl text-right">

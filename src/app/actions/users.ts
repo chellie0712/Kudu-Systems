@@ -6,6 +6,7 @@ import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
 import { isRole, type Role } from "@/lib/permissions";
+import { toCents } from "@/lib/format";
 
 const MIN_PASSWORD = 10;
 
@@ -78,4 +79,13 @@ export async function setUserDisabled(fd: FormData) {
   }
   await db.user.update({ where: { id }, data: { disabled } });
   redirect("/settings?msg=User+updated#users");
+}
+
+/** A person's own hourly labour rate; empty means the company rate applies. */
+export async function setUserLabourRate(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("users.manage");
+  const raw = str(fd, "labourRate");
+  await db.user.update({ where: { id: str(fd, "id") }, data: { labourRate: raw ? Math.max(0, toCents(raw)) : null } });
+  redirect("/settings?msg=Labour+rate+saved#users");
 }

@@ -31,6 +31,8 @@ model User {
   disabled      Boolean   @default(false)
   role          Role      @default(OFFICE)
   jobCards      JobCard[] // job cards assigned to this user as technician
+  labourRate    Int? // cents per hour excl. VAT; overrides Settings.labourRate when set
+  timeEntries   TimeEntry[]
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
@@ -110,6 +112,10 @@ model Settings {
   pcoSignature       String? @db.Text // PNG data URL printed in the PCO block
   logo               String? @db.Text // company logo as an image data URL, printed on documents
   warrantyMonths     Int     @default(3)
+  // Labour billing
+  labourRate         Int     @default(0) // cents per hour excl. VAT
+  labourDescription  String  @default("Labour")
+  labourRoundMinutes Int     @default(15) // billed time is rounded up to this many minutes
   warrantyCovers     String  @default("General Pest Control\nTermites / WDI\nRodents\nFumigation\nOther") // one option per line
   warrantyTerms      String  @default("Covers re-treatment of the pest species and areas listed above, if activity recurs under normal conditions; a follow-up fee is applicable.\nExcludes new infestations by a different pest, and conditions beyond our control (alterations, water damage, etc.).\nNotify us in writing within 14 days of any recurring activity to remain covered under this warranty.\nVoid if unauthorised pest control products or other contractors are used in the treated area.\nReasonable access must be given for re-treatment visits; failure to do so may void cover for that area.\nNon-transferable — applies only to the client and property named above.") // one term per line
 }
@@ -249,6 +255,7 @@ model JobCard {
   signedAt              DateTime?
   photos                JobCardPhoto[]
   checklists            JobCardChecklist[]
+  timeEntries           TimeEntry[]
   invoices              Invoice[]
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())
@@ -295,6 +302,26 @@ model JobCardChecklist {
   sortOrder             Int                @default(0)
 
   @@index([jobCardId])
+}
+
+// Time worked on a job: a running timer (end is null) or a finished entry.
+model TimeEntry {
+  id        String    @id @default(cuid())
+  jobCardId String
+  jobCard   JobCard   @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName  String    @default("") // kept if the user is later removed
+  start     DateTime
+  end       DateTime?
+  note      String    @default("")
+  billable  Boolean   @default(true)
+  invoiceId String? // set once the time is billed
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+
+  @@index([jobCardId])
+  @@index([userId, end])
 }
 
 enum PhotoKind {
@@ -347,6 +374,7 @@ model Invoice {
   amountPaid  Int           @default(0)
   items       InvoiceItem[]
   payments    Payment[]
+  timeEntries TimeEntry[] // labour billed on this invoice
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
