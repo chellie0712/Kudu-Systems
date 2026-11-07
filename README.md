@@ -111,6 +111,10 @@ Every user has one role. The rules live in `src/lib/permissions.ts`; pages, serv
 
 **Labour billing** (Settings → Labour billing): a company hourly rate excl. VAT, the invoice line wording, and rounding (time is rounded up per person, default 15 minutes; 0 bills exact minutes). A person can have their own rate in Settings → Users & roles. "Create invoice" on a job card now adds the unbilled time as labour lines (one per rate) after the quotation's lines, and marks that time billed. Time recorded later can be added to the job's draft invoice with "Add labour to draft invoice". Deleting an invoice makes its time unbilled again.
 
+## Invoice approval
+
+Off by default. Switch it on in **Settings → Invoice approval**, optionally only for invoices from a set total (incl. VAT; 0 = every invoice). While an invoice needs approval it cannot be marked as sent (the button is hidden and the server refuses). Office staff press **Submit for approval**; admins see a banner on the dashboard and the **AWAITING APPROVAL** invoice filter, then **Approve** or **Send back** with a reason, which the office sees on the invoice. If the total changes after approval, it needs approving again (an already-sent invoice stays sent, but shows up for the admin to re-approve). Payments can be recorded at any time.
+
 ## Google sign-in and Calendar sync
 
 You need one OAuth client from Google Cloud. About 10 minutes:

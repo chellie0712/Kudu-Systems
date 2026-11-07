@@ -131,6 +131,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </div>
           </div>
         </section>
+        <section id="approval">
+          <SectionTitle>Invoice approval</SectionTitle>
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input type="checkbox" name="invoiceApproval" defaultChecked={s.invoiceApproval} className="h-4 w-4 accent-kudu-600" />
+              Invoices must be approved by an admin before they can be marked as sent
+            </label>
+            <Field label={`Only invoices from (${s.currencySymbol}, incl. VAT)`}>
+              <input name="invoiceApprovalThreshold" inputMode="decimal" className="input" defaultValue={centsToInput(s.invoiceApprovalThreshold)} />
+            </Field>
+          </div>
+          <p className="mt-2 text-xs text-charcoal-500">
+            0 means every invoice. Office staff press “Submit for approval”; admins approve or send it back with a reason. If the total changes after approval, it needs approving again.
+          </p>
+        </section>
         <section id="labour">
           <SectionTitle>Labour billing</SectionTitle>
           <div className="grid gap-4 md:grid-cols-3">

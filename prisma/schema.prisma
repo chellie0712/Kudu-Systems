@@ -116,6 +116,9 @@ model Settings {
   labourRate         Int     @default(0) // cents per hour excl. VAT
   labourDescription  String  @default("Labour")
   labourRoundMinutes Int     @default(15) // billed time is rounded up to this many minutes
+  // Invoice approval
+  invoiceApproval          Boolean @default(false) // invoices must be approved before they can be sent
+  invoiceApprovalThreshold Int     @default(0) // cents incl. VAT; only invoices of at least this total need approval
   warrantyCovers     String  @default("General Pest Control\nTermites / WDI\nRodents\nFumigation\nOther") // one option per line
   warrantyTerms      String  @default("Covers re-treatment of the pest species and areas listed above, if activity recurs under normal conditions; a follow-up fee is applicable.\nExcludes new infestations by a different pest, and conditions beyond our control (alterations, water damage, etc.).\nNotify us in writing within 14 days of any recurring activity to remain covered under this warranty.\nVoid if unauthorised pest control products or other contractors are used in the treated area.\nReasonable access must be given for re-treatment visits; failure to do so may void cover for that area.\nNon-transferable — applies only to the client and property named above.") // one term per line
 }
@@ -372,6 +375,12 @@ model Invoice {
   vatAmount   Int           @default(0)
   total       Int           @default(0)
   amountPaid  Int           @default(0)
+  // Approval (see Settings → Invoice approval)
+  approvalRequestedAt DateTime?
+  approvalRequestedBy String    @default("")
+  approvedAt          DateTime?
+  approvedBy          String    @default("")
+  approvalNote        String    @default("") // reason given when sent back
   items       InvoiceItem[]
   payments    Payment[]
   timeEntries TimeEntry[] // labour billed on this invoice

@@ -21,7 +21,7 @@ export async function saveSettings(fd: FormData) {
     "quoteTerms", "invoiceTerms", "quotePrefix", "jobCardPrefix", "invoicePrefix", "googleCalendarId",
     "jobCardTitle", "jobCardSubtitle", "pcoNumber", "warrantyCovers", "warrantyTerms", "labourDescription",
   ] as const;
-  const data: Record<string, string | number | null> = {};
+  const data: Record<string, string | number | boolean | null> = {};
   for (const f of textFields) data[f] = str(fd, f);
   data.vatRate = num(fd, "vatRate", 15);
   data.quoteValidityDays = Math.round(num(fd, "quoteValidityDays", 30));
@@ -29,6 +29,8 @@ export async function saveSettings(fd: FormData) {
   data.warrantyMonths = Math.round(num(fd, "warrantyMonths", 3));
   data.pcoSignature = str(fd, "pcoSignature") || null;
   data.labourRate = Math.max(0, toCents(str(fd, "labourRate")));
+  data.invoiceApproval = fd.get("invoiceApproval") === "on";
+  data.invoiceApprovalThreshold = Math.max(0, toCents(str(fd, "invoiceApprovalThreshold")));
   data.labourRoundMinutes = Math.max(0, Math.min(60, Math.round(num(fd, "labourRoundMinutes", 15))));
   try {
     data.logo = parseLogo(str(fd, "logo"));

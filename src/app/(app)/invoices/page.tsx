@@ -16,11 +16,14 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   const { status, q = "", msg } = await searchParams;
   const settings = await getSettings();
   const overdue = status === "OVERDUE";
+  const awaiting = status === "AWAITING_APPROVAL";
   const rows = await db.invoice.findMany({
     where: {
       ...(overdue
         ? { status: { in: [InvoiceStatus.SENT, InvoiceStatus.PARTIALLY_PAID] }, dueDate: { lt: new Date() } }
-        : status && status in InvoiceStatus
+        : awaiting
+          ? { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: InvoiceStatus.CANCELLED } }
+          : status && status in InvoiceStatus
           ? { status: status as InvoiceStatus }
           : {}),
       ...(q
@@ -48,7 +51,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
         actions={<Link href="/invoices/new" className="btn-primary">+ New invoice</Link>}
       />
       <Flash message={msg} />
-      <StatusFilter base="/invoices" current={status} q={q} statuses={[...Object.keys(InvoiceStatus), "OVERDUE"]} />
+      <StatusFilter base="/invoices" current={status} q={q} statuses={[...Object.keys(InvoiceStatus), "OVERDUE", ...(settings.invoiceApproval ? ["AWAITING_APPROVAL"] : [])]} />
       <div className="card overflow-x-auto">
         <InvoiceTable rows={rows} symbol={settings.currencySymbol} />
       </div>

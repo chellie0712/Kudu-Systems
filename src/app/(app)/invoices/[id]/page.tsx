@@ -4,8 +4,9 @@ import { requirePermission } from "@/auth";
 import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { fmtDate, money, toDateInput } from "@/lib/format";
-import { deleteInvoice, deletePayment, recordPayment, setInvoiceStatus } from "@/app/actions/invoices";
+import { fmtDate, fmtDateTime, money, toDateInput } from "@/lib/format";
+import { approveInvoice, deleteInvoice, deletePayment, recordPayment, rejectInvoice, requestInvoiceApproval, setInvoiceStatus } from "@/app/actions/invoices";
+import { approvalState, maySend } from "@/lib/approval";
 import { Field, Flash, PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 import { CustomerBlock, DocHeader, ItemsTable, TotalsBlock } from "@/components/Document";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
@@ -39,6 +40,8 @@ export default async function InvoicePage({
   const sym = settings.currencySymbol;
   const balance = inv.total - inv.amountPaid;
   const status = invoiceDisplayStatus(inv);
+  const approval = approvalState(inv, settings);
+  const canApprove = can(user.role, "invoices.approve");
 
   return (
     <div>
@@ -57,7 +60,7 @@ export default async function InvoicePage({
       <Flash message={err} tone="error" />
 
       <div className="no-print mb-4 flex flex-wrap items-center gap-2 text-sm">
-        {inv.status === "DRAFT" && (
+        {inv.status === "DRAFT" && maySend(approval) && (
           <form action={setInvoiceStatus}>
             <input type="hidden" name="id" value={inv.id} />
             <input type="hidden" name="status" value="SENT" />
@@ -76,6 +79,60 @@ export default async function InvoicePage({
           {inv.jobCard && <Link href={`/job-cards/${inv.jobCard.id}`} className="text-kudu-600 hover:underline">Job card {inv.jobCard.number}</Link>}
         </span>
       </div>
+
+      {approval !== "NOT_NEEDED" && inv.status !== "CANCELLED" && (
+        <div
+          className={`no-print mb-4 rounded-md border p-4 text-sm ${
+            approval === "APPROVED" ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"
+          }`}
+        >
+          {approval === "APPROVED" && (
+            <p>
+              <b>Approved</b> by {inv.approvedBy || "an admin"} on {fmtDateTime(inv.approvedAt)}.
+              {inv.status === "DRAFT" && " It can now be sent."}
+            </p>
+          )}
+          {approval === "NEEDED" && (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="flex-1">
+                <b>Needs approval before it can be sent.</b>
+                {inv.approvalNote && <span className="block text-kudu-700">Sent back: {inv.approvalNote}</span>}
+              </p>
+              <form action={requestInvoiceApproval}>
+                <input type="hidden" name="id" value={inv.id} />
+                <button className="btn-dark py-1.5">Submit for approval</button>
+              </form>
+              {canApprove && (
+                <form action={approveInvoice}>
+                  <input type="hidden" name="id" value={inv.id} />
+                  <button className="btn-primary py-1.5">Approve</button>
+                </form>
+              )}
+            </div>
+          )}
+          {approval === "REQUESTED" && (
+            <div className="space-y-3">
+              <p>
+                <b>Waiting for approval</b> · submitted by {inv.approvalRequestedBy || "office"} on {fmtDateTime(inv.approvalRequestedAt)}.
+                {!canApprove && " An admin needs to approve it."}
+              </p>
+              {canApprove && (
+                <div className="flex flex-wrap items-end gap-2">
+                  <form action={approveInvoice}>
+                    <input type="hidden" name="id" value={inv.id} />
+                    <button className="btn-primary py-1.5">Approve</button>
+                  </form>
+                  <form action={rejectInvoice} className="flex flex-1 flex-wrap gap-2">
+                    <input type="hidden" name="id" value={inv.id} />
+                    <input name="note" className="input min-w-48 flex-1 py-1.5" placeholder="Reason for sending back" aria-label="Reason for sending back" />
+                    <button className="btn-outline py-1.5">Send back</button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <article className="print-sheet card w-full max-w-4xl space-y-6 p-8">
