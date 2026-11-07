@@ -137,7 +137,7 @@ async function TechnicianHome({ user, db }: { user: AppUser; db: TenantDb }) {
   const [open, done] = await Promise.all([
     db.jobCard.findMany({
       where: { technicianId: user.id, status: { in: ["SCHEDULED", "IN_PROGRESS"] } },
-      include: { customer: { select: { id: true, name: true } } },
+      include: { customer: { select: { id: true, name: true } }, customStatus: { select: { name: true, colour: true } } },
       orderBy: [{ scheduledStart: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
       take: 50,
     }),

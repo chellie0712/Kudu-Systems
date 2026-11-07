@@ -325,8 +325,17 @@ export function JobCardSubmit() {
         onClick={(e) => {
           const form = e.currentTarget.form!;
           const get = (n: string) => (form.elements.namedItem(n) as HTMLInputElement | null)?.value?.trim() ?? "";
-          if (get("status") !== "COMPLETED") return setError("");
+          const statusEl = form.elements.namedItem("status") as HTMLSelectElement | null;
+          // Custom statuses carry their stage on the option.
+          const stage = statusEl?.selectedOptions[0]?.dataset.stage ?? get("status");
+          if (stage !== "COMPLETED") return setError("");
+          let lists: { name: string; requiredForCompletion: boolean; items: { done: boolean }[] }[] = [];
+          try {
+            lists = JSON.parse(get("checklists") || "[]");
+          } catch {}
+          const unfinished = lists.filter((l) => l.requiredForCompletion && l.items.some((i) => !i.done)).map((l) => l.name);
           const missing = [
+            unfinished.length > 0 && `finish the ${unfinished.join(", ")} checklist${unfinished.length > 1 ? "s" : ""}`,
             !get("workDescription") && "describe the work done",
             !get("customerSignature") && "get the client's signature",
             !(form.elements.namedItem("clientConfirmed") as HTMLInputElement | null)?.checked && "tick the client confirmation box",

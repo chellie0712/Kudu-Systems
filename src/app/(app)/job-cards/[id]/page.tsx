@@ -8,7 +8,10 @@ import { getSettings } from "@/lib/settings";
 import { fmtDate, fmtDateTime, fmtTime } from "@/lib/format";
 import { lines } from "@/lib/jobcard";
 import { createInvoiceFromJobCard, deleteJobCard, setJobCardStatus } from "@/app/actions/jobCards";
-import { Flash, NumberedSection, PageHeader, StatusBadge } from "@/components/ui";
+import { Flash, NumberedSection, PageHeader } from "@/components/ui";
+import { JobStatusBadge } from "@/components/JobStatusBadge";
+import { CUSTOM_PREFIX } from "@/lib/jobStatus";
+import { parseItems } from "@/lib/checklists";
 import { PcoBlock } from "@/components/JobCardForm";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 
@@ -39,6 +42,8 @@ export default async function JobCardPage({
         customer: true,
         quotation: { select: { id: true, number: true } },
         photos: { select: { id: true, kind: true }, orderBy: { sortOrder: "asc" } },
+        customStatus: { select: { name: true, colour: true } },
+        checklists: { orderBy: { sortOrder: "asc" } },
         invoices: { select: { id: true, number: true } },
         events: { select: { googleEventId: true } },
       },
@@ -52,13 +57,21 @@ export default async function JobCardPage({
   const before = j.photos.find((p) => p.kind === "BEFORE");
   const after = j.photos.find((p) => p.kind === "AFTER");
   const extras = j.photos.filter((p) => p.kind === "EXTRA");
+  const customStatuses = await db.jobStatus.findMany({
+    where: { active: true, id: { not: j.statusId ?? "" }, ...(may("jobcards.assign") ? {} : { stage: { not: "CANCELLED" } }) },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+  const checklists = j.checklists.map((l) => ({ ...l, items: parseItems(l.items) }));
+  // Section numbers shift with the optional sections.
+  let section = 3;
+  const next = () => ++section;
   const ingredients = [...j.activeIngredients, ...(j.activeIngredientOther ? [j.activeIngredientOther] : [])];
 
   return (
     <div>
       <PageHeader
         back={may("customers.view") ? { href: `/customers/${j.customerId}?tab=jobcards`, label: j.customer.name } : { href: "/job-cards", label: "My Job Cards" }}
-        title={<span className="flex items-center gap-3">{j.number} <StatusBadge status={j.status} /></span>}
+        title={<span className="flex items-center gap-3">{j.number} <JobStatusBadge status={j.status} custom={j.customStatus} /></span>}
         subtitle={[j.jobType, j.scheduledStart && fmtDateTime(j.scheduledStart), onGoogle && "On Google Calendar"].filter(Boolean).join(" · ")}
         actions={
           <>
@@ -89,6 +102,16 @@ export default async function JobCardPage({
           ))}
         {j.status !== "COMPLETED" && (
           <Link href={`/job-cards/${j.id}/edit`} className="btn-outline py-1 text-xs">complete &amp; sign off</Link>
+        )}
+        {customStatuses.length > 0 && (
+          <form action={setJobCardStatus} className="flex items-center gap-1">
+            <input type="hidden" name="id" value={j.id} />
+            <select name="status" className="input w-auto py-1 text-xs" aria-label="Custom status" defaultValue="">
+              <option value="" disabled>Other status…</option>
+              {customStatuses.map((c) => <option key={c.id} value={`${CUSTOM_PREFIX}${c.id}`}>{c.name}</option>)}
+            </select>
+            <button className="btn-outline py-1 text-xs">Set</button>
+          </form>
         )}
         <span className="ml-auto flex flex-wrap gap-3">
           {j.quotation && may("quotations.view") && <Link href={`/quotations/${j.quotation.id}`} className="text-kudu-600 hover:underline">Quotation {j.quotation.number}</Link>}
@@ -143,8 +166,35 @@ export default async function JobCardPage({
           </div>
         </NumberedSection>
 
+        {checklists.length > 0 && (
+          <NumberedSection n={next()} title="CHECKLISTS">
+            <div className="space-y-3">
+              {checklists.map((l) => (
+                <div key={l.id}>
+                  <div className="mb-1 text-xs font-bold text-charcoal-600">
+                    {l.name} · {l.items.filter((i) => i.done).length}/{l.items.length}
+                  </div>
+                  <ul className="space-y-0.5 text-sm">
+                    {l.items.map((it, k) => (
+                      <li key={k} className="flex items-start gap-2">
+                        <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border text-[10px] ${it.done ? "border-kudu-600 bg-kudu-600 text-white" : "border-charcoal-400"}`}>
+                          {it.done ? "✓" : ""}
+                        </span>
+                        <span>
+                          {it.label}
+                          {it.note && <span className="text-charcoal-500"> · {it.note}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </NumberedSection>
+        )}
+
         {j.photos.length > 0 && (
-          <NumberedSection n={4} title="PHOTOS">
+          <NumberedSection n={next()} title="PHOTOS">
             <div className="grid grid-cols-2 gap-3">
               {[["BEFORE", before], ["AFTER", after]].map(([label, p]) =>
                 p && typeof p === "object" ? (
@@ -167,7 +217,7 @@ export default async function JobCardPage({
           </NumberedSection>
         )}
 
-        <NumberedSection n={j.photos.length > 0 ? 5 : 4} title="WARRANTY DETAILS">
+        <NumberedSection n={next()} title="WARRANTY DETAILS">
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <Item k="Warranty no." v={j.warrantyNo} />
@@ -187,13 +237,13 @@ export default async function JobCardPage({
           </div>
         </NumberedSection>
 
-        <NumberedSection n={j.photos.length > 0 ? 6 : 5} title="WARRANTY TERMS & CONDITIONS">
+        <NumberedSection n={next()} title="WARRANTY TERMS & CONDITIONS">
           <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed">
             {lines(settings.warrantyTerms).map((t) => <li key={t}>{t}</li>)}
           </ul>
         </NumberedSection>
 
-        <NumberedSection n={j.photos.length > 0 ? 7 : 6} title="CLIENT SIGN-OFF">
+        <NumberedSection n={next()} title="CLIENT SIGN-OFF">
           <div className="space-y-3">
             <p className="flex items-start gap-2 text-sm">
               <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border text-[10px] ${j.clientConfirmed ? "border-kudu-600 bg-kudu-600 text-white" : "border-charcoal-400"}`}>

@@ -214,7 +214,9 @@ model JobCard {
   customer              Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
   quotationId           String?
   quotation             Quotation?      @relation(fields: [quotationId], references: [id], onDelete: SetNull)
-  status                JobCardStatus   @default(SCHEDULED)
+  status                JobCardStatus   @default(SCHEDULED) // the stage; drives calendar, dashboard and filters
+  statusId              String? // optional custom status shown instead of the stage name
+  customStatus          JobStatus?      @relation(fields: [statusId], references: [id], onDelete: SetNull)
   // 1. Job details
   jobDate               DateTime?
   technician            String          @default("") // name printed on the job card
@@ -246,12 +248,53 @@ model JobCard {
   customerSignature     String?         @db.Text // PNG data URL
   signedAt              DateTime?
   photos                JobCardPhoto[]
+  checklists            JobCardChecklist[]
   invoices              Invoice[]
   events                CalendarEvent[]
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
   @@index([technicianId])
+}
+
+// Company-defined job statuses, e.g. "Awaiting parts". Each belongs to one stage
+// (Scheduled, In progress, Completed, Cancelled), which the rest of the system uses.
+model JobStatus {
+  id        String        @id @default(cuid())
+  name      String
+  colour    String        @default("slate") // one of the colour keys in src/lib/jobStatus.ts
+  stage     JobCardStatus @default(IN_PROGRESS)
+  sortOrder Int           @default(0)
+  active    Boolean       @default(true)
+  jobCards  JobCard[]
+}
+
+// Checklist / form templates set up in Settings and filled in on job cards.
+model ChecklistTemplate {
+  id                    String             @id @default(cuid())
+  name                  String
+  items                 String             @default("") // one item per line
+  autoAddAll            Boolean            @default(false) // add to every job card
+  jobType               String             @default("") // or: add to job cards of this job type
+  requiredForCompletion Boolean            @default(false) // all items ticked before the job can be Completed
+  active                Boolean            @default(true)
+  sortOrder             Int                @default(0)
+  checklists            JobCardChecklist[]
+}
+
+// A checklist on one job card. Items are copied from the template, so editing a template never changes past jobs.
+model JobCardChecklist {
+  id                    String             @id @default(cuid())
+  jobCardId             String
+  jobCard               JobCard            @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  templateId            String?
+  template              ChecklistTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  name                  String
+  requiredForCompletion Boolean            @default(false)
+  items                 Json               @default("[]") // [{ label, done, note }]
+  sortOrder             Int                @default(0)
+
+  @@index([jobCardId])
 }
 
 enum PhotoKind {

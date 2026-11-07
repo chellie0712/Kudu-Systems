@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { Customer, Invoice, JobCard, Quotation } from "@prisma/client";
+import type { Customer, Invoice, JobCard, JobStatus, Quotation } from "@prisma/client";
+import { JobStatusBadge } from "./JobStatusBadge";
 import { fmtDate, fmtDateTime, money } from "@/lib/format";
 import { Empty, StatusBadge } from "./ui";
 
@@ -42,7 +43,7 @@ export function QuotationTable({ rows, symbol }: { rows: WithCustomer<Quotation>
   );
 }
 
-export function JobCardTable({ rows, linkCustomers = true, empty = "No job cards yet." }: { rows: WithCustomer<JobCard>[]; linkCustomers?: boolean; empty?: string }) {
+export function JobCardTable({ rows, linkCustomers = true, empty = "No job cards yet." }: { rows: WithCustomer<JobCard & { customStatus?: Pick<JobStatus, "name" | "colour"> | null }>[]; linkCustomers?: boolean; empty?: string }) {
   if (!rows.length) return <Empty>{empty}</Empty>;
   return (
     <table className="table">
@@ -66,7 +67,7 @@ export function JobCardTable({ rows, linkCustomers = true, empty = "No job cards
             <td>{j.jobType}</td>
             <td>{fmtDateTime(j.scheduledStart) || <span className="text-charcoal-400">Not scheduled</span>}</td>
             <td>{j.technician}</td>
-            <td><StatusBadge status={j.status} /></td>
+            <td><JobStatusBadge status={j.status} custom={j.customStatus} /></td>
           </tr>
         ))}
       </tbody>

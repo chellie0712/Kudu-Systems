@@ -2,7 +2,19 @@ import { authDisabled, requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { googleConfigured } from "@/lib/google";
-import { deleteProduct, disconnectGoogleCalendar, saveProduct, saveSettings, useMyGoogleCalendar } from "@/app/actions/settings";
+import {
+  deleteChecklistTemplate,
+  deleteJobStatus,
+  deleteProduct,
+  disconnectGoogleCalendar,
+  saveChecklistTemplate,
+  saveJobStatus,
+  saveProduct,
+  saveSettings,
+  useMyGoogleCalendar,
+} from "@/app/actions/settings";
+import { STAGES, STATUS_COLOURS, colourClass } from "@/lib/jobStatus";
+import { JOB_TYPES } from "@/lib/jobcard";
 import { SignaturePad } from "@/components/JobCardEditors";
 import { addUser, resetPassword, setUserDisabled, setUserRole } from "@/app/actions/users";
 import { PERMISSION_TABLE, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, can } from "@/lib/permissions";
@@ -19,6 +31,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const s = await getSettings();
   const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
   const products = await db.product.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  const jobStatuses = await db.jobStatus.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { jobCards: true } } } });
+  const templates = await db.checklistTemplate.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+  const stageSelect = (value?: string) => (
+    <select name="stage" defaultValue={value ?? "IN_PROGRESS"} className="input w-40 flex-none" aria-label="Stage">
+      {STAGES.map((st) => <option key={st.value} value={st.value}>{st.label}</option>)}
+    </select>
+  );
+  const colourSelect = (value?: string) => (
+    <select name="colour" defaultValue={value ?? "slate"} className="input w-32 flex-none" aria-label="Colour">
+      {Object.entries(STATUS_COLOURS).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
+    </select>
+  );
   const syncUser = s.googleSyncUserId ? await db.user.findUnique({ where: { id: s.googleSyncUserId } }) : null;
 
   const text = (name: keyof typeof s, label: string, className = "") => (
@@ -195,6 +219,89 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </ul>
           <p className="mt-2 text-xs text-charcoal-500">To give a technician a job, choose them under “Assigned to” on the job card.</p>
         </div>
+      </div>
+
+      <div id="statuses" className="card mt-6 p-6">
+        <SectionTitle>Job statuses</SectionTitle>
+        <p className="mb-3 text-sm text-charcoal-500">
+          Your own statuses, e.g. “Awaiting parts”. Each belongs to a stage (Scheduled, In progress, Completed or Cancelled), which decides where the job counts on the dashboard and calendar.
+          Deleting a status puts its job cards back on their stage.
+        </p>
+        <div className="space-y-2">
+          {jobStatuses.map((st) => (
+            <div key={st.id} className="flex flex-wrap items-end gap-2 border-b border-charcoal-100 pb-2">
+              <form action={saveJobStatus} className="flex flex-1 flex-wrap items-center gap-2">
+                <input type="hidden" name="id" value={st.id} />
+                <span className={`inline-block w-3 self-stretch rounded ${colourClass(st.colour)}`} aria-hidden />
+                <input name="name" className="input min-w-48 flex-1" defaultValue={st.name} aria-label="Status name" />
+                {stageSelect(st.stage)}
+                {colourSelect(st.colour)}
+                <label className="flex items-center gap-1 text-xs"><input type="checkbox" name="active" defaultChecked={st.active} className="accent-kudu-600" /> Show</label>
+                <span className="text-xs text-charcoal-500">{st._count.jobCards} job{st._count.jobCards === 1 ? "" : "s"}</span>
+                <button className="btn-outline py-1.5">Save</button>
+              </form>
+              <form action={deleteJobStatus}>
+                <input type="hidden" name="id" value={st.id} />
+                <ConfirmButton message={`Delete the status “${st.name}”? Its job cards keep their stage.`} className="btn-danger py-1.5">Delete</ConfirmButton>
+              </form>
+            </div>
+          ))}
+        </div>
+        <form action={saveJobStatus} className="mt-4 flex flex-wrap items-end gap-2">
+          <input name="name" className="input min-w-48 flex-1" placeholder="New status, e.g. Awaiting parts" required />
+          {stageSelect()}
+          {colourSelect()}
+          <button className="btn-primary py-1.5">+ Add status</button>
+        </form>
+      </div>
+
+      <div id="checklists" className="card mt-6 p-6">
+        <SectionTitle>Forms &amp; checklists</SectionTitle>
+        <p className="mb-3 text-sm text-charcoal-500">
+          Checklists are filled in on the job card and printed on it. Add one to every job card, to one job type, or leave both off and add it by hand.
+          Changing a checklist here does not change job cards that already have it.
+        </p>
+        <div className="space-y-4">
+          {templates.map((t) => (
+            <div key={t.id} className="rounded-md border border-charcoal-200 p-3">
+              <form action={saveChecklistTemplate} className="grid gap-3 md:grid-cols-2">
+                <input type="hidden" name="id" value={t.id} />
+                <Field label="Name"><input name="name" className="input" defaultValue={t.name} required /></Field>
+                <Field label="Add automatically to job type (optional)">
+                  <input name="jobType" list="checklist-job-types" className="input" defaultValue={t.jobType} />
+                </Field>
+                <Field label="Items (one per line)" className="md:col-span-2">
+                  <textarea name="items" rows={Math.min(10, Math.max(3, t.items.split("\n").length + 1))} className="input" defaultValue={t.items} />
+                </Field>
+                <div className="flex flex-wrap items-center gap-4 text-sm md:col-span-2">
+                  <label className="flex items-center gap-2"><input type="checkbox" name="autoAddAll" defaultChecked={t.autoAddAll} className="accent-kudu-600" /> Add to every job card</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" name="requiredForCompletion" defaultChecked={t.requiredForCompletion} className="accent-kudu-600" /> All items must be ticked to complete the job</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" name="active" defaultChecked={t.active} className="accent-kudu-600" /> Show</label>
+                  <button className="btn-outline ml-auto py-1.5">Save checklist</button>
+                </div>
+              </form>
+              <form action={deleteChecklistTemplate} className="mt-2 text-right">
+                <input type="hidden" name="id" value={t.id} />
+                <ConfirmButton message={`Delete the checklist “${t.name}”? Job cards keep their filled-in copy.`} className="text-xs text-charcoal-400 hover:text-kudu-600">Delete checklist</ConfirmButton>
+              </form>
+            </div>
+          ))}
+        </div>
+        <form action={saveChecklistTemplate} className="mt-4 grid gap-3 rounded-md border border-dashed border-charcoal-300 p-3 md:grid-cols-2">
+          <Field label="New checklist name"><input name="name" className="input" placeholder="e.g. Rodent station inspection" required /></Field>
+          <Field label="Add automatically to job type (optional)">
+            <input name="jobType" list="checklist-job-types" className="input" />
+          </Field>
+          <Field label="Items (one per line)" className="md:col-span-2">
+            <textarea name="items" rows={4} className="input" required />
+          </Field>
+          <div className="flex flex-wrap items-center gap-4 text-sm md:col-span-2">
+            <label className="flex items-center gap-2"><input type="checkbox" name="autoAddAll" className="accent-kudu-600" /> Add to every job card</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="requiredForCompletion" className="accent-kudu-600" /> All items must be ticked to complete the job</label>
+            <button className="btn-primary ml-auto py-1.5">+ Add checklist</button>
+          </div>
+        </form>
+        <datalist id="checklist-job-types">{JOB_TYPES.map((jt) => <option key={jt} value={jt} />)}</datalist>
       </div>
 
       <div id="products" className="card mt-6 p-6">

@@ -99,6 +99,12 @@ Every user has one role. The rules live in `src/lib/permissions.ts`; pages, serv
 - Opening a page or action without permission leads to `/no-access`.
 - Local demo mode (`AUTH_DISABLED=true`) signs you in as an Admin; set `DEMO_ROLE=OFFICE` or `DEMO_ROLE=TECHNICIAN` to try the other roles.
 
+## Job statuses, forms and checklists
+
+**Custom job statuses** (Settings → Job statuses): your own names and colours, e.g. "Awaiting parts". Each belongs to one of the four stages (Scheduled, In progress, Completed, Cancelled). The stage drives the dashboard, the calendar and Google sync; the custom name is what people see on the job card, the job list and the filter. Pick one in the job card's Status list, or with "Other status…" on the job card page. Deleting a status puts its job cards back on their stage. Three examples are added on first deploy; rename or delete them.
+
+**Forms & checklists** (Settings → Forms & checklists): a checklist is a list of items, one per line. It can be added to every job card, to job cards of one job type, or by hand on the job card. Technicians tick items and add notes on their own job cards; the checklist prints on the job card. "All items must be ticked to complete the job" stops a job being marked Completed (in the form and on the server) until every item is ticked. Job cards keep their own copy, so editing or deleting a template never changes past jobs. A "Safety checklist" example is added on first deploy.
+
 ## Google sign-in and Calendar sync
 
 You need one OAuth client from Google Cloud. About 10 minutes:
