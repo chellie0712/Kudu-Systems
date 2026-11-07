@@ -111,6 +111,13 @@ model Settings {
   googleCalendarId   String  @default("primary")
   googleSyncUserId   String? // user whose Google account the calendar sync runs as
   googleSyncToken    String?
+  // Google Ads: ad spend is pulled per campaign per day (see src/lib/googleAds.ts)
+  googleAdsCustomerId    String    @default("") // the Ads account number, digits only
+  googleAdsRefreshToken  String? // encrypted with AUTH_SECRET (src/lib/secret.ts)
+  googleAdsAccountEmail  String    @default("") // Google account that connected it
+  googleAdsCurrency      String    @default("")
+  googleAdsLastSyncAt    DateTime?
+  googleAdsLastError     String    @default("")
   // Job card & service warranty
   jobCardTitle       String  @default("Job Card & Service Warranty")
   jobCardSubtitle    String  @default("Registered Pest Control Operator")
@@ -169,6 +176,8 @@ model Customer {
   assets          CustomerAsset[]
   queries         Query[]
   portalUsers     PortalUser[] // the customer's logins to the customer portal
+  leadSource      String          @default("") // how they found us, e.g. "Google Ads" (see src/lib/marketing.ts)
+  leadCampaign    String          @default("") // the ad campaign, matched to AdSpend.campaign
   branchId        String? // the branch that looks after this customer; its documents follow it
   branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
@@ -658,4 +667,36 @@ model PortalUser {
   updatedAt       DateTime  @updatedAt
 
   @@index([customerId])
+}
+
+/// Advertising cost per campaign per day, pulled from Google Ads (or entered by hand for other channels).
+model AdSpend {
+  id          String   @id @default(cuid())
+  date        DateTime // the day, at 00:00 UTC
+  channel     String   @default("Google Ads")
+  campaignId  String // Google's campaign id; for hand-entered spend, the campaign name
+  campaign    String
+  cost        Int      @default(0) // cents, as charged by the channel (excl. VAT)
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  conversions Float    @default(0) // the channel's own conversion count (form fills, calls)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([channel, campaignId, date])
+  @@index([date])
+}
+
+/// A business cost for the profit & loss report: wages, fuel, rent, chemicals bought, other advertising…
+model Expense {
+  id          String   @id @default(cuid())
+  date        DateTime
+  category    String
+  description String   @default("")
+  supplier    String   @default("")
+  amount      Int // cents excl. VAT
+  createdBy   String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
 }

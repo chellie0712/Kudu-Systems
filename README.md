@@ -154,6 +154,29 @@ Off by default. Switch it on in **Settings → Invoice approval**, optionally on
 - **Top customers** by invoiced amount, **technicians and staff** (jobs completed by job date, time recorded) and **materials used** on jobs (quantity, at cost, at sell price, and how much has been billed).
 - **CSV downloads** of the invoices and payments in the period, for your accountant or spreadsheet.
 
+## Marketing, Google Ads and profit & loss
+
+**Marketing** (menu, office and admins) answers "what does a customer cost us, and what do we make after advertising?" for any period.
+
+- **Lead source**: each customer has "How they found you" (Google Ads, Facebook / Instagram, referral, …) and the ad campaign. The campaign field suggests names from your ad spend.
+- **Per channel and campaign**: spend, clicks, Google's conversions and cost per conversion, leads (customers added in the period), won (accepted quote or issued invoice), cost per lead, cost per won customer, revenue excl. VAT from those customers to date, and profit after their materials and the ad spend.
+- **Profit & loss** (admins only): per month, revenue excl. VAT − materials used at cost = gross profit, − advertising − expenses by category = net profit.
+- **Expenses** (menu, admins): wages, fuel, rent and other costs, excl. VAT. Spend on ad channels without a live link (Facebook, flyers, radio) is entered on the same page under "Other advertising" so it counts toward cost per lead.
+
+### Google Ads live link
+
+Each company connects **its own** Google Ads account in **Settings → Google Ads** (Connect Google Ads, sign in, allow access, then enter the 10-digit account number). Spend, clicks and conversions per campaign per day are pulled at once (the last 13 months), every night, whenever the Marketing report is opened and the data is over 3 hours old, and with "Sync now". The last 30 days are re-read on every sync because Google keeps revising conversions. Disconnecting keeps the spend already loaded.
+
+One-time platform setup (the Google Cloud project behind Kudu, not per company):
+
+1. In Google Cloud (a project with billing turned on), enable the **Google Ads API**, and apply for **Explorer** access at console.cloud.google.com/google/ads-apis/overview (usually approved straight away). Test access only reaches test accounts.
+2. **OAuth consent screen**: External, add the scope `https://www.googleapis.com/auth/adwords`, and set publishing status to **In production**. In "Testing" Google expires the connection after 7 days.
+3. **Credentials → OAuth client ID → Web application**, authorised redirect URI `https://<your domain>/api/google-ads/callback` (one per domain you use, e.g. the preview URL too).
+4. Vercel environment variables: `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET` (if left out, `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` are used), and `CRON_SECRET` (any long random string; Vercel sends it to the nightly job in `vercel.json`).
+5. Optional: `GOOGLE_ADS_REDIRECT_URI` to force the callback address, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` when accounts are reached through a manager (MCC) account, `GOOGLE_ADS_API_VERSION` (default `v26`).
+
+Refresh tokens are stored encrypted with `AUTH_SECRET` in each company's own database.
+
 ## Branches
 
 Optional; nothing changes until you add one in **Settings → Branches** (name, address, phone, email). Then:

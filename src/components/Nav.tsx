@@ -12,6 +12,8 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
   { permission: "invoices.view", href: "/invoices", label: "Invoices", icon: "M9 14l2 2 4-4M4 4h16v16l-3-2-3 2-2-2-2 2-3-2-3 2z" },
   { permission: "queries.view", href: "/queries", label: "Queries", icon: "M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8a9.9 9.9 0 01-4-.8L3 20l1.3-3.9A7.5 7.5 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z" },
   { permission: "reports.view", href: "/reports", label: "Reports", icon: "M4 20h16M7 16V10m5 6V5m5 11v-4" },
+  { permission: "reports.view", href: "/marketing", label: "Marketing", icon: "M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zm13-3a5 5 0 010 8m3-11a9 9 0 010 14" },
+  { permission: "expenses.manage", href: "/expenses", label: "Expenses", icon: "M12 8c-2 0-3 .9-3 2s1 1.7 3 2 3 .9 3 2-1 2-3 2m0-8c1.1 0 2.1.4 2.6 1M12 8V6m0 10v2m0-2c-1.1 0-2.1-.4-2.6-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { permission: "inventory.view", href: "/inventory", label: "Inventory", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
   { permission: "stock.use", hideWith: "inventory.view", href: "/inventory/van", label: "My van", icon: "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zm10 0a2 2 0 100-4 2 2 0 000 4z" },
   { href: "/calendar", label: "Calendar", icon: "M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" },

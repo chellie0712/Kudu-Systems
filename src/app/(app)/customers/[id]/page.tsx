@@ -142,6 +142,7 @@ export default async function CustomerPage({
                 ["VAT number", customer.vatNumber],
                 ["Registration no.", customer.regNumber],
                 ["Customer since", fmtDate(customer.createdAt)],
+                ["Lead source", [customer.leadSource, customer.leadCampaign].filter(Boolean).join(" · ")],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="label">{k}</dt>
