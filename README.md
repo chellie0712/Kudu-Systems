@@ -12,6 +12,7 @@ Customer management and job workflow for Kudu Systems: customer profiles with qu
 | **Invoices** | Created blank, **from a quotation** (line items copied) or **from a job card**. Payments (partial or full) update the status automatically; overdue invoices are flagged. Banking details print on the invoice. |
 | **Inventory** | Stock items (unit, cost and sell price, reorder level), a warehouse and vans, receiving, transfers, stock counts, full movement history, low-stock warnings. Technicians see "My van" and book products used on their job cards out of their own van; the office adds them to the invoice. |
 | **Customer assets** | Equipment on a customer's site (bait stations, fly units, traps…) with code, location, serial number, install date and service interval. Technicians record a result for each asset on the job card; results print on the job card and build each asset's service history. |
+| **Branches** | Optional offices. Customers belong to a branch; a header switcher filters the lists, calendar and dashboard; documents print the branch's contact details. |
 | **Calendar** | Month view. Scheduled job cards appear automatically. Appointments can be linked to a customer and show on that customer's profile. Two-way Google Calendar sync. |
 | **Dashboard** | Open quotes, open job cards, outstanding and overdue amounts, next 14 days. |
 | **Settings** | Company details, VAT rate, currency, banking details, document prefixes and numbering, default terms, job card title, PCO number and signature, warranty length / covers / terms, the products list, Google Calendar connection. |
@@ -128,6 +129,16 @@ Off by default. Switch it on in **Settings → Invoice approval**, optionally on
 **Assets tab** on the customer profile (office and admins): add the equipment on the customer's site with a code (e.g. BS-01), name, location on site, serial number, install date and service interval. The list shows each asset's last check and the next service date (red when overdue). "Edit / history" opens the asset's details and every check made on it. Untick Active to retire an asset but keep its history; only admins can delete one.
 
 **Site assets on the job card**: anyone who can open the job card (technicians: their own) picks a result for each asset on this visit, e.g. "Checked, OK", "Activity found", "Bait / glue board replaced", "Missing", with an optional note. The checks print on the job card as "Site assets checked". Technicians can also add a new asset from the job card (e.g. a station installed today), but only the office can change an existing one.
+
+## Branches
+
+Optional; nothing changes until you add one in **Settings → Branches** (name, address, phone, email). Then:
+
+- Each customer can be given a branch (customer form), and its quotations, job cards and invoices belong to that branch. Moving a customer to another branch moves its history with it.
+- A **branch switcher** appears in the header for office and admins. It filters the customer, quotation, job card and invoice lists, the calendar (appointments without a customer always show) and the dashboard. "All branches" shows everything. The choice is remembered in that browser; without one, each person starts on their **home branch** (Settings → Users & roles).
+- A branch's address, phone and email print on its customers' quotations, invoices and job cards in place of the company's, with "<branch> branch" under the company name.
+- Branches don't restrict access: anyone with access can switch to any branch. Technicians don't see the switcher (they only see their own jobs).
+- Deleting a branch keeps its customers and users; they just have no branch.
 
 ## Google sign-in and Calendar sync
 

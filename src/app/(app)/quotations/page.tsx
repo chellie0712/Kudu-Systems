@@ -2,6 +2,7 @@ import Link from "next/link";
 import { QuotationStatus } from "@prisma/client";
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
+import { docBranchWhere } from "@/lib/branch";
 import { getSettings } from "@/lib/settings";
 import { Flash, PageHeader } from "@/components/ui";
 import { QuotationTable } from "@/components/DocTables";
@@ -16,6 +17,7 @@ export default async function QuotationsPage({ searchParams }: { searchParams: P
   const settings = await getSettings();
   const rows = await db.quotation.findMany({
     where: {
+      ...(await docBranchWhere()),
       ...(status && status in QuotationStatus ? { status: status as QuotationStatus } : {}),
       ...(q
         ? {

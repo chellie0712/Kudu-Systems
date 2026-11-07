@@ -1,5 +1,5 @@
 import { CompanyLogo } from "./CompanyLogo";
-import type { Customer, Settings } from "@prisma/client";
+import type { Branch, Customer, Settings } from "@prisma/client";
 import { money } from "@/lib/format";
 import { lineTotal } from "@/lib/totals";
 
@@ -9,20 +9,25 @@ export function DocHeader({
   docType,
   number,
   meta,
+  branch,
 }: {
   settings: Settings;
   docType: string;
   number: string;
   meta: [string, string][];
+  /** The customer's branch; its contact details replace the company's where filled in. */
+  branch?: Branch | null;
 }) {
+  const c = branchContact(settings, branch);
   return (
     <div className="flex flex-wrap items-start justify-between gap-6 border-b-4 border-kudu-600 pb-5">
       <div className="space-y-2">
         <CompanyLogo logo={settings.logo} name={settings.companyName} className="h-20 w-auto" />
         <div className="text-xs leading-relaxed text-charcoal-600">
           <div className="font-semibold text-charcoal-800">{settings.companyName}</div>
-          {settings.address && <div className="whitespace-pre-line">{settings.address}</div>}
-          {[settings.phone, settings.email, settings.website].filter(Boolean).join(" · ")}
+          {branch && <div className="font-medium text-charcoal-700">{branch.name} branch</div>}
+          {c.address && <div className="whitespace-pre-line">{c.address}</div>}
+          {[c.phone, c.email, settings.website].filter(Boolean).join(" · ")}
           {settings.vatNumber && <div>VAT no. {settings.vatNumber}</div>}
           {settings.regNumber && <div>Reg. no. {settings.regNumber}</div>}
         </div>
@@ -43,6 +48,15 @@ export function DocHeader({
       </div>
     </div>
   );
+}
+
+/** Address, phone and email to print: the branch's where set, otherwise the company's. */
+export function branchContact(settings: Pick<Settings, "address" | "phone" | "email">, branch?: Pick<Branch, "address" | "phone" | "email"> | null) {
+  return {
+    address: branch?.address || settings.address,
+    phone: branch?.phone || settings.phone,
+    email: branch?.email || settings.email,
+  };
 }
 
 export function CustomerBlock({ customer, title = "Bill to", extra }: { customer: Customer; title?: string; extra?: React.ReactNode }) {

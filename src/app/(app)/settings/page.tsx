@@ -20,6 +20,7 @@ import { addUser, resetPassword, setUserDisabled, setUserLabourRate, setUserRole
 import { centsToInput } from "@/lib/format";
 import { PERMISSION_TABLE, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, can } from "@/lib/permissions";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { deleteBranch, saveBranch, setUserBranch } from "@/app/actions/branches";
 import { LogoInput } from "@/components/LogoInput";
 import { Field, Flash, PageHeader, SectionTitle } from "@/components/ui";
 
@@ -31,6 +32,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { msg, err } = await searchParams;
   const s = await getSettings();
   const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
+  const branches = await db.branch.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { customers: true, users: true } } } });
   const products = await db.product.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
   const jobStatuses = await db.jobStatus.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { jobCards: true } } } });
   const templates = await db.checklistTemplate.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
@@ -194,6 +196,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 </select>
                 <button className="btn-outline py-1.5">Set role</button>
               </form>
+              {branches.length > 0 && (
+                <form action={setUserBranch} className="flex gap-2">
+                  <input type="hidden" name="id" value={u.id} />
+                  <select name="branchId" defaultValue={u.branchId ?? ""} className="input w-36 py-1.5" aria-label={`Branch of ${u.email}`} title="Home branch: what the lists show when they sign in">
+                    <option value="">No branch</option>
+                    {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                  <button className="btn-outline py-1.5">Set branch</button>
+                </form>
+              )}
               <form action={setUserLabourRate} className="flex gap-2">
                 <input type="hidden" name="id" value={u.id} />
                 <input
@@ -348,6 +360,43 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </div>
         </form>
         <datalist id="checklist-job-types">{JOB_TYPES.map((jt) => <option key={jt} value={jt} />)}</datalist>
+      </div>
+
+      <div id="branches" className="card mt-6 p-6">
+        <SectionTitle>Branches</SectionTitle>
+        <p className="mb-3 text-sm text-charcoal-500">
+          Optional. Each customer can belong to a branch, and its quotations, job cards and invoices follow the customer. Once a branch exists, a
+          branch switcher appears at the top of every page to filter the lists, calendar and dashboard; each person starts on their home branch
+          (set under Users &amp; roles). A branch&apos;s address, phone and email print on its customers&apos; documents instead of the company&apos;s.
+        </p>
+        <div className="space-y-3">
+          {branches.map((b) => (
+            <div key={b.id} className="border-b border-charcoal-100 pb-3">
+              <form action={saveBranch} className="flex flex-wrap items-end gap-2">
+                <input type="hidden" name="id" value={b.id} />
+                <input name="name" required className="input w-40 flex-none" defaultValue={b.name} aria-label="Branch name" />
+                <input name="phone" className="input w-36 flex-none" defaultValue={b.phone} placeholder="Phone" aria-label={`Phone of ${b.name}`} />
+                <input name="email" type="email" className="input w-52 flex-none" defaultValue={b.email} placeholder="Email" aria-label={`Email of ${b.name}`} />
+                <input name="sortOrder" type="number" className="input w-16 flex-none" defaultValue={b.sortOrder} aria-label="Order" title="Order in lists" />
+                <textarea name="address" rows={2} className="input min-w-60 flex-1" defaultValue={b.address} placeholder="Address" aria-label={`Address of ${b.name}`} />
+                <label className="flex items-center gap-1 pb-2 text-xs"><input type="checkbox" name="active" defaultChecked={b.active} className="accent-kudu-600" /> Active</label>
+                <button className="btn-outline py-1.5">Save</button>
+              </form>
+              <form action={deleteBranch} className="mt-1 flex items-center justify-between text-xs text-charcoal-500">
+                <span>{b._count.customers} customer{b._count.customers === 1 ? "" : "s"} · {b._count.users} user{b._count.users === 1 ? "" : "s"}</span>
+                <input type="hidden" name="id" value={b.id} />
+                <ConfirmButton message={`Delete the ${b.name} branch? Its customers and users are kept but will have no branch.`} className="text-xs text-charcoal-400 hover:text-kudu-600">Delete branch</ConfirmButton>
+              </form>
+            </div>
+          ))}
+        </div>
+        <form action={saveBranch} className="mt-4 flex flex-wrap items-end gap-2">
+          <input name="name" required className="input w-40 flex-none" placeholder="New branch, e.g. Cape Town" aria-label="New branch name" />
+          <input name="phone" className="input w-36 flex-none" placeholder="Phone" aria-label="New branch phone" />
+          <input name="email" type="email" className="input w-52 flex-none" placeholder="Email" aria-label="New branch email" />
+          <textarea name="address" rows={2} className="input min-w-60 flex-1" placeholder="Address" aria-label="New branch address" />
+          <button className="btn-primary py-1.5">+ Add branch</button>
+        </form>
       </div>
 
       <div id="products" className="card mt-6 p-6">

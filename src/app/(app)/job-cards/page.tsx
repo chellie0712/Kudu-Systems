@@ -4,6 +4,7 @@ import { requireUser } from "@/auth";
 import { can } from "@/lib/permissions";
 import { CUSTOM_PREFIX, STAGES } from "@/lib/jobStatus";
 import { tenantDb } from "@/lib/db";
+import { docBranchWhere } from "@/lib/branch";
 import { Flash, PageHeader } from "@/components/ui";
 import { JobCardTable } from "@/components/DocTables";
 import { StatusFilter } from "@/components/StatusFilter";
@@ -19,6 +20,7 @@ export default async function JobCardsPage({ searchParams }: { searchParams: Pro
   const customId = status?.startsWith(CUSTOM_PREFIX) ? status.slice(CUSTOM_PREFIX.length) : null;
   const rows = await db.jobCard.findMany({
     where: {
+      ...(await docBranchWhere()),
       // Technicians only see the jobs assigned to them.
       ...(all ? {} : { technicianId: user.id }),
       ...(status && status in JobCardStatus ? { status: status as JobCardStatus } : {}),

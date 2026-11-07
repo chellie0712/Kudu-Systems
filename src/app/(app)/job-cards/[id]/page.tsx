@@ -17,6 +17,7 @@ import { CUSTOM_PREFIX } from "@/lib/jobStatus";
 import { parseItems } from "@/lib/checklists";
 import { PcoBlock } from "@/components/JobCardForm";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
+import { branchContact } from "@/components/Document";
 
 function Item({ k, v, className = "" }: { k: string; v?: React.ReactNode; className?: string }) {
   return (
@@ -42,7 +43,7 @@ export default async function JobCardPage({
     db.jobCard.findUnique({
       where: { id },
       include: {
-        customer: true,
+        customer: { include: { branch: true } },
         quotation: { select: { id: true, number: true } },
         photos: { select: { id: true, kind: true }, orderBy: { sortOrder: "asc" } },
         customStatus: { select: { name: true, colour: true } },
@@ -96,6 +97,7 @@ export default async function JobCardPage({
   // Section numbers shift with the optional sections.
   let section = 3;
   const next = () => ++section;
+  const contact = branchContact(settings, j.customer.branch);
   const ingredients = [...j.activeIngredients, ...(j.activeIngredientOther ? [j.activeIngredientOther] : [])];
 
   return (
@@ -160,8 +162,9 @@ export default async function JobCardPage({
             {settings.jobCardSubtitle && <p className="text-xs text-charcoal-500 italic">{settings.jobCardSubtitle}</p>}
             <p className="mt-1 text-xs text-charcoal-600">
               {settings.companyName}
-              {settings.phone && ` · ${settings.phone}`}
-              {settings.email && ` · ${settings.email}`}
+              {j.customer.branch && ` · ${j.customer.branch.name} branch`}
+              {contact.phone && ` · ${contact.phone}`}
+              {contact.email && ` · ${contact.email}`}
             </p>
           </div>
         </header>
