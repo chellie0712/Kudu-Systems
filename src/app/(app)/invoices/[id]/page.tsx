@@ -11,6 +11,8 @@ import { Field, Flash, PageHeader, SectionTitle, StatusBadge } from "@/component
 import { InvoiceSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 import { invoiceDisplayStatus } from "@/components/DocTables";
+import { sageReady } from "@/lib/sage";
+import { checkSagePayments, sendInvoiceToSageNow } from "@/app/actions/sage";
 
 export default async function InvoicePage({
   params,
@@ -42,6 +44,9 @@ export default async function InvoicePage({
   const status = invoiceDisplayStatus(inv);
   const approval = approvalState(inv, settings);
   const canApprove = can(user.role, "invoices.approve");
+  const sage = sageReady(settings);
+  const unsentPayments = inv.payments.filter((p) => !p.sageId && !p.fromSage).length;
+  const beforeSageStart = !inv.sageId && !!settings.sageStartDate && inv.issueDate < settings.sageStartDate;
 
   return (
     <div>
@@ -79,6 +84,32 @@ export default async function InvoicePage({
           {inv.jobCard && <Link href={`/job-cards/${inv.jobCard.id}`} className="text-kudu-600 hover:underline">Job card {inv.jobCard.number}</Link>}
         </span>
       </div>
+
+      {(sage || inv.sageId) && inv.status !== "DRAFT" && (
+        <div className={`no-print mb-4 flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${inv.sageError ? "border-amber-200 bg-amber-50" : "border-charcoal-200 bg-white"}`}>
+          <span>
+            <b>Sage:</b>{" "}
+            {inv.sageId
+              ? <>sent as {inv.sageNumber || inv.number}{inv.sageSentAt && ` on ${fmtDateTime(inv.sageSentAt)}`}{unsentPayments > 0 && `, ${unsentPayments} payment${unsentPayments === 1 ? "" : "s"} not yet sent`}.</>
+              : beforeSageStart ? "not sent (issued before the Sage start date in Settings, so assumed to be in Sage already)." : "not sent yet."}
+            {inv.sageError && <span className="block text-kudu-700">{inv.sageError}</span>}
+          </span>
+          <span className="ml-auto flex gap-2">
+            {sage && inv.sageId && (inv.status === "SENT" || inv.status === "PARTIALLY_PAID") && (
+              <form action={checkSagePayments}>
+                <input type="hidden" name="id" value={inv.id} />
+                <button className="btn-outline py-1 text-xs">Check Sage for payments</button>
+              </form>
+            )}
+            {sage && inv.status !== "CANCELLED" && can(user.role, "invoices.edit") && (
+              <form action={sendInvoiceToSageNow}>
+                <input type="hidden" name="id" value={inv.id} />
+                <button className="btn-outline py-1 text-xs">{inv.sageId ? "Send again to Sage" : "Send to Sage"}</button>
+              </form>
+            )}
+          </span>
+        </div>
+      )}
 
       {approval !== "NOT_NEEDED" && inv.status !== "CANCELLED" && (
         <div
@@ -148,7 +179,8 @@ export default async function InvoicePage({
                   <li key={p.id} className="flex items-center justify-between py-2">
                     <div>
                       <div className="font-medium">{money(p.amount, sym)}</div>
-                      <div className="text-xs text-charcoal-500">{fmtDate(p.date)} · {p.method}{p.reference && ` · ${p.reference}`}</div>
+                      <div className="text-xs text-charcoal-500">{fmtDate(p.date)} · {p.method}{p.reference && ` · ${p.reference}`}{p.sageId && " · in Sage"}{p.fromSage && " · from Sage"}</div>
+                      {p.sageError && <div className="text-xs text-kudu-700">Sage: {p.sageError}</div>}
                     </div>
                     {can(user.role, "payments.delete") && (
                       <form action={deletePayment}>

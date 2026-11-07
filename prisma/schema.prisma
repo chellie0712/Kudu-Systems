@@ -118,6 +118,20 @@ model Settings {
   googleAdsCurrency      String    @default("")
   googleAdsLastSyncAt    DateTime?
   googleAdsLastError     String    @default("")
+  // Sage Business Cloud Accounting (South Africa), see src/lib/sage.ts
+  sageUsername           String    @default("") // the Sage user Kudu signs in as
+  sagePassword           String? // encrypted with AUTH_SECRET
+  sageCompanyId          Int?
+  sageCompanyName        String    @default("")
+  sageTaxTypeId          Int? // Sage tax type for standard-rated lines (15%)
+  sageZeroTaxTypeId      Int? // Sage tax type for invoices with 0% VAT
+  sageItemId             Int? // Sage item/service every invoice line is posted as
+  sageItemName           String    @default("")
+  sageBankAccountId      Int? // where payments recorded in Kudu are banked in Sage
+  sageUseKuduNumbers     Boolean   @default(true) // Sage invoice number = Kudu invoice number
+  sageAutoSend           Boolean   @default(true) // send invoices and payments as soon as they are issued/recorded
+  sageStartDate          DateTime? // only invoices issued from this day are sent (older ones are already in Sage)
+  sageLastError          String    @default("")
   // Job card & service warranty
   jobCardTitle       String  @default("Job Card & Service Warranty")
   jobCardSubtitle    String  @default("Registered Pest Control Operator")
@@ -178,6 +192,7 @@ model Customer {
   portalUsers     PortalUser[] // the customer's logins to the customer portal
   leadSource      String          @default("") // how they found us, e.g. "Google Ads" (see src/lib/marketing.ts)
   leadCampaign    String          @default("") // the ad campaign, matched to AdSpend.campaign
+  sageId          Int? // the customer's ID in Sage, once sent
   branchId        String? // the branch that looks after this customer; its documents follow it
   branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
@@ -491,6 +506,12 @@ model Invoice {
   payments    Payment[]
   timeEntries TimeEntry[] // labour billed on this invoice
   stockMovements      StockMovement[] // materials billed on this invoice
+  sageId          Int? // tax invoice ID in Sage, once sent
+  sageNumber      String    @default("")
+  sageSentAt      DateTime?
+  sageHash        String    @default("") // fingerprint of what was sent, to resend only real changes
+  sageCheckedAt   DateTime? // last time Sage was asked for payments on it
+  sageError       String    @default("")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -514,6 +535,9 @@ model Payment {
   date      DateTime @default(now())
   method    String   @default("EFT")
   reference String   @default("")
+  sageId    Int? // customer receipt ID in Sage, once sent
+  fromSage  Boolean  @default(false) // captured in Sage and brought into Kudu (never sent back)
+  sageError String   @default("")
   createdAt DateTime @default(now())
 }
 

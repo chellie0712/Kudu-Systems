@@ -10,6 +10,7 @@ import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
+import { autoSendToSage, deleteSageReceipt } from "@/lib/sage";
 
 /** Recalculate amount paid and set PAID / PARTIALLY_PAID / SENT accordingly. */
 async function refreshPaymentStatus(invoiceId: string) {
@@ -74,6 +75,7 @@ export async function saveInvoice(fd: FormData) {
       })
     : await db.invoice.create({ data: { ...data, number: await nextNumber("invoice"), items: { create: itemRows } } });
   await refreshPaymentStatus(inv.id);
+  await autoSendToSage(db, inv.id);
   revalidatePath("/invoices");
   const approvalLost = before?.approvedAt && !keepApproval ? " The total changed, so it needs approving again." : "";
   redirect(`/invoices/${inv.id}?msg=Invoice+saved${notice || approvalLost ? `&err=${encodeURIComponent((notice + approvalLost).trim())}` : ""}`);
@@ -91,6 +93,7 @@ export async function setInvoiceStatus(fd: FormData) {
   }
   await db.invoice.update({ where: { id }, data: { status } });
   if (str(fd, "status") !== InvoiceStatus.CANCELLED) await refreshPaymentStatus(id);
+  await autoSendToSage(db, id);
   revalidatePath(`/invoices/${id}`);
   redirect(`/invoices/${id}?msg=Status+updated`);
 }
@@ -111,6 +114,7 @@ export async function recordPayment(fd: FormData) {
     },
   });
   await refreshPaymentStatus(invoiceId);
+  await autoSendToSage(db, invoiceId);
   revalidatePath(`/invoices/${invoiceId}`);
   redirect(`/invoices/${invoiceId}?msg=Payment+recorded`);
 }
@@ -119,6 +123,11 @@ export async function deletePayment(fd: FormData) {
   const db = await tenantDb();
   await requirePermission("payments.delete");
   const p = await db.payment.delete({ where: { id: str(fd, "id") } });
+  if (p.sageId) {
+    await deleteSageReceipt(db, p.sageId).catch((e) =>
+      db.invoice.update({ where: { id: p.invoiceId }, data: { sageError: `A payment was removed in Kudu but not in Sage (${(e as Error).message}). Delete Sage receipt ${p.sageId} by hand.`.slice(0, 500) } }),
+    );
+  }
   await refreshPaymentStatus(p.invoiceId);
   revalidatePath(`/invoices/${p.invoiceId}`);
   redirect(`/invoices/${p.invoiceId}?msg=Payment+removed`);
@@ -148,6 +157,7 @@ export async function approveInvoice(fd: FormData) {
   const user = await requirePermission("invoices.approve");
   const id = str(fd, "id");
   await db.invoice.update({ where: { id }, data: { approvedAt: new Date(), approvedBy: user.name, approvalNote: "" } });
+  await autoSendToSage(db, id);
   revalidatePath("/invoices");
   redirect(`/invoices/${id}?msg=Invoice+approved`);
 }
