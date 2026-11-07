@@ -11,6 +11,7 @@ import { createInvoiceFromJobCard, deleteJobCard, setJobCardStatus } from "@/app
 import { Flash, NumberedSection, PageHeader } from "@/components/ui";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { TimeSection } from "@/components/TimeSection";
+import { StockSection } from "@/components/StockSection";
 import { CUSTOM_PREFIX } from "@/lib/jobStatus";
 import { parseItems } from "@/lib/checklists";
 import { PcoBlock } from "@/components/JobCardForm";
@@ -48,6 +49,15 @@ export default async function JobCardPage({
         invoices: { select: { id: true, number: true, status: true } },
         timeEntries: { orderBy: { start: "asc" }, include: { invoice: { select: { id: true, number: true } } } },
         events: { select: { googleEventId: true } },
+        stockMovements: {
+          where: { kind: "USE" },
+          orderBy: { createdAt: "asc" },
+          include: {
+            item: { select: { id: true, name: true, unit: true, sellPrice: true } },
+            fromLocation: { select: { name: true } },
+            invoice: { select: { id: true, number: true } },
+          },
+        },
       },
     }),
     getSettings(),
@@ -70,6 +80,15 @@ export default async function JobCardPage({
         labourRate: u.labourRate,
       }))
     : [];
+  // Stock can be booked out of any location by the office, and only out of their own van by a technician.
+  const [stockLocations, stockItems] = await Promise.all([
+    db.stockLocation.findMany({
+      where: { active: true, ...(may("inventory.manage") ? {} : { type: "VAN", userId: user.id }) },
+      select: { id: true, name: true },
+      orderBy: [{ type: "asc" }, { name: "asc" }],
+    }),
+    db.stockItem.findMany({ where: { active: true }, select: { id: true, name: true, unit: true, levels: { select: { locationId: true, quantity: true } } }, orderBy: { name: "asc" } }),
+  ]);
   const checklists = j.checklists.map((l) => ({ ...l, items: parseItems(l.items) }));
   // Section numbers shift with the optional sections.
   let section = 3;
@@ -284,6 +303,16 @@ export default async function JobCardPage({
         people={people}
         settings={settings}
         hasDraftInvoice={j.invoices.some((i) => i.status === "DRAFT")}
+      />
+
+      <StockSection
+        jobCardId={j.id}
+        used={j.stockMovements}
+        user={user}
+        locations={stockLocations}
+        items={stockItems.map((i) => ({ id: i.id, name: i.name, unit: i.unit, onHand: Object.fromEntries(i.levels.map((l) => [l.locationId, l.quantity])) }))}
+        hasDraftInvoice={j.invoices.some((i) => i.status === "DRAFT")}
+        symbol={settings.currencySymbol}
       />
 
       {may("jobcards.delete") && (
