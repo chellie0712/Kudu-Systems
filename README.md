@@ -12,6 +12,7 @@ Customer management and job workflow for Kudu Systems: customer profiles with qu
 | **Invoices** | Created blank, **from a quotation** (line items copied) or **from a job card**. Payments (partial or full) update the status automatically; overdue invoices are flagged. Banking details print on the invoice. |
 | **Inventory** | Stock items (unit, cost and sell price, reorder level), a warehouse and vans, receiving, transfers, stock counts, full movement history, low-stock warnings. Technicians see "My van" and book products used on their job cards out of their own van; the office adds them to the invoice. |
 | **Customer assets** | Equipment on a customer's site (bait stations, fly units, traps…) with code, location, serial number, install date and service interval. Technicians record a result for each asset on the job card; results print on the job card and build each asset's service history. |
+| **Queries** | Customer complaints, requests and callbacks with priority, assignee, due date, notes timeline and resolution; raise a job card from a query. |
 | **Branches** | Optional offices. Customers belong to a branch; a header switcher filters the lists, calendar and dashboard; documents print the branch's contact details. |
 | **Calendar** | Month view. Scheduled job cards appear automatically. Appointments can be linked to a customer and show on that customer's profile. Two-way Google Calendar sync. |
 | **Dashboard** | Open quotes, open job cards, outstanding and overdue amounts, next 14 days. |
@@ -129,6 +130,16 @@ Off by default. Switch it on in **Settings → Invoice approval**, optionally on
 **Assets tab** on the customer profile (office and admins): add the equipment on the customer's site with a code (e.g. BS-01), name, location on site, serial number, install date and service interval. The list shows each asset's last check and the next service date (red when overdue). "Edit / history" opens the asset's details and every check made on it. Untick Active to retire an asset but keep its history; only admins can delete one.
 
 **Site assets on the job card**: anyone who can open the job card (technicians: their own) picks a result for each asset on this visit, e.g. "Checked, OK", "Activity found", "Bait / glue board replaced", "Missing", with an optional note. The checks print on the job card as "Site assets checked". Technicians can also add a new asset from the job card (e.g. a station installed today), but only the office can change an existing one.
+
+## Customer queries
+
+**Queries** (menu, office and admins) tracks complaints, re-service requests, callbacks and other customer queries until they are resolved. Each query gets a number (`QRY-0001`; prefix in Settings → Documents), a customer, subject, details, type, how it was received, priority (Low to Urgent), an assignee (office or admin) and a "respond by" date. It is overdue once that day has passed.
+
+- The list has views for Open, Assigned to me, Overdue, Unassigned and All, plus search and a status filter. Urgent queries sort first, then by due date.
+- On a query you add notes, change the status (Open → In progress → Waiting on customer → Resolved / Closed), and edit the details. Resolving or closing needs a resolution. Every change is written to the query's timeline with who and when. Adding a note to an Open query moves it to In progress.
+- **Create job card** raises a job card for the customer (e.g. a re-service) with the query in its scope, and links the two.
+- Customers have a **Queries** tab, job cards show their queries with a "+ Log query" link, and the dashboard shows open, overdue and your queries. Queries follow the branch switcher.
+- Only admins can delete a query.
 
 ## Branches
 

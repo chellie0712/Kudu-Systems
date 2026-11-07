@@ -18,6 +18,7 @@ import { parseItems } from "@/lib/checklists";
 import { PcoBlock } from "@/components/JobCardForm";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 import { branchContact } from "@/components/Document";
+import { isOpen } from "@/lib/queries";
 
 function Item({ k, v, className = "" }: { k: string; v?: React.ReactNode; className?: string }) {
   return (
@@ -51,6 +52,7 @@ export default async function JobCardPage({
         invoices: { select: { id: true, number: true, status: true } },
         timeEntries: { orderBy: { start: "asc" }, include: { invoice: { select: { id: true, number: true } } } },
         events: { select: { googleEventId: true } },
+        queries: { select: { id: true, number: true, status: true }, orderBy: { createdAt: "asc" } },
         assetChecks: { include: { asset: true }, orderBy: [{ asset: { code: "asc" } }, { asset: { name: "asc" } }] },
         stockMovements: {
           where: { kind: "USE" },
@@ -148,6 +150,10 @@ export default async function JobCardPage({
         )}
         <span className="ml-auto flex flex-wrap gap-3">
           {j.quotation && may("quotations.view") && <Link href={`/quotations/${j.quotation.id}`} className="text-kudu-600 hover:underline">Quotation {j.quotation.number}</Link>}
+          {may("queries.view") && j.queries.map((qr) => (
+            <Link key={qr.id} href={`/queries/${qr.id}`} className="text-kudu-600 hover:underline">Query {qr.number}{isOpen(qr.status) ? " (open)" : ""}</Link>
+          ))}
+          {may("queries.edit") && <Link href={`/queries/new?customerId=${j.customerId}&jobCardId=${j.id}`} className="text-charcoal-500 hover:text-kudu-600">+ Log query</Link>}
           {may("invoices.view") && j.invoices.map((i) => (
             <Link key={i.id} href={`/invoices/${i.id}`} className="text-kudu-600 hover:underline">Invoice {i.number}</Link>
           ))}

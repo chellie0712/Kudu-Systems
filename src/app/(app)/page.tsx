@@ -9,6 +9,7 @@ import { addDays, fmtDate, fmtDateTime, money } from "@/lib/format";
 import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 import { stockOverview } from "@/lib/inventory";
 import { currentBranchId, getBranches } from "@/lib/branch";
+import { OPEN_STATUSES, overdueBefore } from "@/lib/queries";
 
 export default async function Dashboard() {
   const db = await tenantDb();
@@ -48,6 +49,13 @@ export default async function Dashboard() {
     settings.invoiceApproval && can(user.role, "invoices.approve")
       ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" }, ...ofBranch } })
       : 0;
+  const queryCounts = can(user.role, "queries.view")
+    ? await Promise.all([
+        db.query.count({ where: { status: { in: OPEN_STATUSES }, ...ofBranch } }),
+        db.query.count({ where: { status: { in: OPEN_STATUSES }, dueAt: { lt: overdueBefore(now) }, ...ofBranch } }),
+        db.query.count({ where: { status: { in: OPEN_STATUSES }, assignedToId: user.id } }),
+      ])
+    : null;
   const lowStock = can(user.role, "inventory.view") ? (await stockOverview(db)).filter((i) => i.low) : [];
   const stats = [
     { label: "Active customers", value: String(customerCount), href: "/customers" },
@@ -72,6 +80,13 @@ export default async function Dashboard() {
         <Link href="/invoices?status=AWAITING_APPROVAL" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
           {awaitingApproval} invoice{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
         </Link>
+      )}
+      {queryCounts && queryCounts[0] > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-charcoal-200 bg-white p-3 text-sm">
+          <Link href="/queries?view=open" className="font-medium hover:text-kudu-600">{queryCounts[0]} open quer{queryCounts[0] === 1 ? "y" : "ies"}</Link>
+          {queryCounts[1] > 0 && <Link href="/queries?view=overdue" className="font-semibold text-kudu-700 hover:underline">{queryCounts[1]} overdue</Link>}
+          {queryCounts[2] > 0 && <Link href="/queries?view=mine" className="text-charcoal-600 hover:text-kudu-600">{queryCounts[2]} assigned to you</Link>}
+        </div>
       )}
       {lowStock.length > 0 && (
         <Link href="/inventory?show=low" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">

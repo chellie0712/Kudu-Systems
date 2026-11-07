@@ -12,6 +12,8 @@ import { InvoiceTable, JobCardTable, QuotationTable } from "@/components/DocTabl
 import { EventForm } from "@/components/EventForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { CustomerAssetsTab } from "@/components/Assets";
+import { QueryTable } from "@/components/Queries";
+import { isOpen } from "@/lib/queries";
 
 const tabs = [
   { key: "info", label: "Information" },
@@ -20,6 +22,7 @@ const tabs = [
   { key: "invoices", label: "Invoices" },
   { key: "calendar", label: "Calendar" },
   { key: "assets", label: "Assets" },
+  { key: "queries", label: "Queries" },
 ];
 
 export default async function CustomerPage({
@@ -42,6 +45,7 @@ export default async function CustomerPage({
       invoices: { orderBy: { issueDate: "desc" } },
       events: { orderBy: { start: "asc" } },
       branch: { select: { name: true } },
+      queries: { orderBy: { createdAt: "desc" }, include: { customer: { select: { id: true, name: true } }, assignedTo: { select: { name: true, email: true } } } },
       assets: {
         orderBy: [{ active: "desc" }, { code: "asc" }, { name: "asc" }],
         include: { checks: { orderBy: { checkedAt: "desc" }, include: { jobCard: { select: { id: true, number: true } } } } },
@@ -63,6 +67,7 @@ export default async function CustomerPage({
     invoices: customer.invoices.length,
     calendar: upcoming.length,
     assets: customer.assets.filter((a) => a.active).length,
+    queries: customer.queries.filter((q) => isOpen(q.status)).length,
   };
 
   return (
@@ -202,6 +207,16 @@ export default async function CustomerPage({
       {tab === "invoices" && (
         <div className="card overflow-x-auto">
           <InvoiceTable rows={customer.invoices} symbol={sym} />
+        </div>
+      )}
+      {tab === "queries" && (
+        <div className="space-y-3">
+          {can(user.role, "queries.edit") && (
+            <div className="text-right"><Link href={`/queries/new?customerId=${id}`} className="btn-primary">+ Log query</Link></div>
+          )}
+          <div className="card overflow-x-auto">
+            {can(user.role, "queries.view") ? <QueryTable rows={customer.queries} showCustomer={false} /> : <Empty>You don&apos;t have access to queries.</Empty>}
+          </div>
         </div>
       )}
       {tab === "assets" && (

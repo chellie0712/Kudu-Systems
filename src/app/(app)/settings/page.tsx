@@ -99,6 +99,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             {text("quotePrefix", "Quotation prefix")}
             {text("jobCardPrefix", "Job card prefix")}
             {text("invoicePrefix", "Invoice prefix")}
+            {text("queryPrefix", "Query prefix")}
             <Field label="Quote valid for (days)"><input name="quoteValidityDays" type="number" className="input" defaultValue={s.quoteValidityDays} /></Field>
             <Field label="Invoice due after (days)"><input name="invoiceDueDays" type="number" className="input" defaultValue={s.invoiceDueDays} /></Field>
             <div />
@@ -110,7 +111,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </Field>
           </div>
           <p className="mt-2 text-xs text-charcoal-500">
-            Next numbers: {s.quotePrefix}{String(s.nextQuoteNo).padStart(4, "0")}, {s.jobCardPrefix}{String(s.nextJobCardNo).padStart(4, "0")}, {s.invoicePrefix}{String(s.nextInvoiceNo).padStart(4, "0")}
+            Next numbers: {s.quotePrefix}{String(s.nextQuoteNo).padStart(4, "0")}, {s.jobCardPrefix}{String(s.nextJobCardNo).padStart(4, "0")}, {s.invoicePrefix}{String(s.nextInvoiceNo).padStart(4, "0")}, {s.queryPrefix}{String(s.nextQueryNo).padStart(4, "0")}
           </p>
         </section>
         <section id="jobcard">
