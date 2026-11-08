@@ -13,6 +13,7 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
   { permission: "queries.view", href: "/queries", label: "Queries", icon: "M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8a9.9 9.9 0 01-4-.8L3 20l1.3-3.9A7.5 7.5 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z" },
   { permission: "reports.view", href: "/reports", label: "Reports", icon: "M4 20h16M7 16V10m5 6V5m5 11v-4" },
   { permission: "reports.view", href: "/marketing", label: "Marketing", icon: "M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zm13-3a5 5 0 010 8m3-11a9 9 0 010 14" },
+  { permission: "campaigns.edit", href: "/marketing/email", label: "Email campaigns", icon: "M3 7l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" },
   { permission: "expenses.manage", href: "/expenses", label: "Expenses", icon: "M12 8c-2 0-3 .9-3 2s1 1.7 3 2 3 .9 3 2-1 2-3 2m0-8c1.1 0 2.1.4 2.6 1M12 8V6m0 10v2m0-2c-1.1 0-2.1-.4-2.6-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { permission: "inventory.view", href: "/inventory", label: "Inventory", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
   { permission: "stock.use", hideWith: "inventory.view", href: "/inventory/van", label: "My van", icon: "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zm10 0a2 2 0 100-4 2 2 0 000 4z" },
@@ -26,7 +27,9 @@ export function Nav({ role }: { role: Role }) {
   return (
     <nav className="flex gap-1 overflow-x-auto px-2 py-2 md:flex-col md:overflow-visible md:px-3 md:py-4">
       {visible.map((item) => {
-        const active = item.href === "/" ? path === "/" : path.startsWith(item.href);
+        // The most specific menu entry wins (Marketing vs Email campaigns).
+        const matches = (href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`));
+        const active = matches(item.href) && !visible.some((o) => o.href.length > item.href.length && o.href.startsWith(item.href) && matches(o.href));
         return (
           <Link
             key={item.href}

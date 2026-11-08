@@ -14,6 +14,7 @@ Customer management and job workflow for Kudu Systems: customer profiles with qu
 | **Customer assets** | Equipment on a customer's site (bait stations, fly units, traps…) with code, location, serial number, install date and service interval. Technicians record a result for each asset on the job card; results print on the job card and build each asset's service history. |
 | **Queries** | Customer complaints, requests and callbacks with priority, assignee, due date, notes timeline and resolution; raise a job card from a query. |
 | **Reports** | Sales, VAT, payments, quote conversion, cashflow forecast, aged debtors, top customers, technician jobs and hours, materials used; CSV exports. |
+| **Email campaigns** | Marketing email to customers, sent from each user's **own mailbox** (Gmail / Google Workspace, Outlook / Microsoft 365, or any SMTP mailbox) and their sign-in address. Simple formatting, a button, merge fields, preview, test send, audience filters, progress, daily limits, POPIA-compliant consent and unsubscribe. |
 | **Customer portal** | `/portal`: a customer's contacts sign in (company code + email + password, kept apart from staff logins) to see sent quotations and accept or decline them, booked visits, completed job cards / service warranties (printable), sent invoices with payments and banking details, and to log queries or re-service requests. Staff give access on the customer's **Portal** tab, which makes a one-time link (valid 14 days) to send by WhatsApp or email; the customer opens it and chooses a password. The same button makes a password-reset link. Drafts, cancelled documents, internal query notes and other customers are never shown. |
 | **Offline mode** | Technicians can add the app to their phone's home screen. While they have signal, their open jobs are kept on the phone; with no signal the app opens **My jobs (offline)** (`/offline`), where they fill in work done, tick checklists, take photos and get the client's signature, rating and comment. Everything is sent automatically when the signal comes back and goes through the same checks as online (a sign-off the server can't accept stays on the phone with the reason). Signing out deletes the phone's copy, warning first about unsent work. |
 | **Branches** | Optional offices. Customers belong to a branch; a header switcher filters the lists, calendar and dashboard; documents print the branch's contact details. |
@@ -176,6 +177,28 @@ One-time platform setup (the Google Cloud project behind Kudu, not per company):
 5. Optional: `GOOGLE_ADS_REDIRECT_URI` to force the callback address, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` when accounts are reached through a manager (MCC) account, `GOOGLE_ADS_API_VERSION` (default `v26`).
 
 Refresh tokens are stored encrypted with `AUTH_SECRET` in each company's own database.
+
+## Email campaigns
+
+`/marketing/email` (Admin and Office). Write a campaign, preview it as a real customer will see it, send a test to yourself, then **Send now**.
+
+**Sent from your own mailbox.** Each user connects their mailbox once on **My profile** (`/account`, click your name top right). Campaigns go out from the user's **sign-in email address**, through their own mailbox, so customers see that address, replies go back to them and copies sit in their Sent folder. Kudu can only send; it cannot read the mailbox. The mailbox must be the sign-in address: connecting Google or Microsoft as a different address is refused.
+
+| Way to connect | Works for | Needs on the server |
+| --- | --- | --- |
+| Connect Google | Gmail, Google Workspace | A Google OAuth client (`GOOGLE_MAIL_CLIENT_ID` / `GOOGLE_MAIL_CLIENT_SECRET`, or the `AUTH_GOOGLE_*` one) with the Gmail API enabled and the `gmail.send` scope; redirect URI `https://<site>/api/mailbox/google/callback` |
+| Connect Microsoft | Outlook.com, Microsoft 365 | A Microsoft Entra app registration (`MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET`, optional `MICROSOFT_TENANT_ID`, default `common`) with delegated `Mail.Send`, `User.Read`, `offline_access`; redirect URI `https://<site>/api/mailbox/microsoft/callback` |
+| SMTP | Any other mailbox: website hosting mail, Afrihost, Xneelo, Gmail with an app password | Nothing. The user types the server, port, username and password; Kudu tests it before saving |
+
+Tokens and passwords are stored encrypted with `AUTH_SECRET`. Set `APP_URL` (e.g. `https://crm.kudusystems.co.za`) once the site has its own domain; unsubscribe links and the logo in emails use it (otherwise the address the sender is using).
+
+**Who receives it (POPIA section 69).** Only customers marked **Opted in**, or **existing customers** (an issued invoice) who have not unsubscribed. Leads with no invoice are never emailed until consent is recorded on their customer page (Information tab → Email marketing). Archived customers and customers without an email address are skipped; each address gets one copy. Campaigns can be narrowed by branch, customer type and lead source, or to opted-in customers only.
+
+**Unsubscribe.** Every email has the company's name, address and contact details and an unsubscribe link (`/unsubscribe/...`, a confirm button, no sign-in), plus `List-Unsubscribe` / one-click headers so Gmail, Yahoo and Outlook show their own Unsubscribe button. Unsubscribing marks every customer with that address as Unsubscribed at once, including campaigns still sending. Links are signed, so they cannot be guessed.
+
+**Sending.** Pressing Send queues the audience. While the campaign page is open it sends in batches (one email every 0.7 s for Google, 2.1 s for Microsoft, 1 s for SMTP, to stay under their rate limits) with a progress bar. Each mailbox has a **daily limit** (default 400 for Google and SMTP, 250 for Microsoft; change it on My profile); when it is reached, the rest go out the next day. The daily job `/api/cron/email` (06:00 UTC, protected by `CRON_SECRET` like the other nightly jobs) carries on with any campaign still sending, so closing the page is safe, just slower. A rejected address is marked Failed and the rest carry on; a mailbox that stops accepting the login pauses the campaign until someone resumes it from their own mailbox. Campaigns can be paused, resumed, cancelled, duplicated and have failed addresses retried.
+
+Not built: open and click tracking, scheduling for a later time, images in the body, sending from a shared/company address, and bounce processing (bounce emails land in the sender's inbox).
 
 ## Accounting packages
 

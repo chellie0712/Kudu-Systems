@@ -61,6 +61,10 @@ const RULES = {
   "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
   "profit.view": ADMIN, // profit & loss (includes wages and other expenses)
   "expenses.manage": ADMIN, // record business expenses for the profit & loss
+  "email.connect": STAFF, // connect your own mailbox, so campaigns you send go out from your sign-in address
+  "campaigns.edit": STAFF, // write email campaigns and send tests
+  "campaigns.send": STAFF, // send a campaign to customers, pause or cancel it
+  "campaigns.delete": ADMIN,
   "portal.manage": STAFF, // give customers access to the customer portal, send new links, switch access off
   "calendar.viewAll": STAFF, // without it, only events of your own job cards
   "calendar.edit": STAFF,
@@ -98,6 +102,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Customer assets", permission: "assets.edit", note: { TECHNICIAN: "Check and add on own jobs" } },
   { label: "Customer queries and complaints", permission: "queries.edit" },
   { label: "Reports and cashflow", permission: "reports.view" },
+  { label: "Email campaigns to customers (from own mailbox)", permission: "campaigns.send" },
   { label: "Invoices and payments", permission: "invoices.edit" },
   { label: "Approve invoices", permission: "invoices.approve" },
   { label: "See prices and totals", permission: "dashboard.money" },

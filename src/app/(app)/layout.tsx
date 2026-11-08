@@ -24,10 +24,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {authDisabled && (
             <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Local demo mode</span>
           )}
-          <span className="hidden text-right leading-tight text-charcoal-600 sm:inline">
+          <Link href="/account" title="My profile" className="hidden text-right leading-tight text-charcoal-600 hover:text-kudu-700 sm:inline">
             {user.name}
             <span className="block text-xs text-charcoal-400">{settings.companyName} · {ROLE_LABELS[user.role]}</span>
-          </span>
+          </Link>
           {!authDisabled && (
             <form
               action={async () => {

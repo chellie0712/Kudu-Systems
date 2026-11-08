@@ -37,6 +37,8 @@ model User {
   queries       Query[] // queries assigned to this user
   branchId      String? // home branch: the branch shown when they sign in
   branch        Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  mailAccount   MailAccount? // the mailbox their email campaigns are sent from
+  campaignsSent EmailCampaign[]
   accounts      Account[]
   sessions      Session[]
   createdAt     DateTime  @default(now())
@@ -190,6 +192,11 @@ model Customer {
   acctId          String? // the customer's ID (Pastel: account code) in the accounting package
   branchId        String? // the branch that looks after this customer; its documents follow it
   branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  // Email marketing consent (POPIA section 69); see src/lib/email/audience.ts
+  emailConsent       EmailConsent     @default(UNKNOWN)
+  emailConsentAt     DateTime?
+  emailConsentSource String           @default("") // e.g. "Unsubscribe link in 'Winter special'"
+  emailRecipients    EmailRecipient[]
 
   @@index([branchId])
 }
@@ -734,4 +741,107 @@ model Expense {
   updatedAt   DateTime @updatedAt
 
   @@index([date])
+}
+
+// ---------- Email marketing ----------
+
+/**
+ * POPIA s69: marketing email needs consent, except to an existing customer (someone we sold to)
+ * about our own similar services, who may opt out in every email.
+ */
+enum EmailConsent {
+  UNKNOWN // not asked: emailed only while they are an existing customer (has an issued invoice)
+  OPTED_IN // gave consent to receive marketing email
+  UNSUBSCRIBED // opted out: never sent marketing email again
+}
+
+enum MailProvider {
+  GOOGLE // Gmail / Google Workspace, through the Gmail API
+  MICROSOFT // Outlook / Microsoft 365, through Microsoft Graph
+  SMTP // any other mailbox, with its SMTP server details
+}
+
+/**
+ * A user's own mailbox. Campaigns they send go out from it, from their sign-in email address.
+ */
+model MailAccount {
+  id         String       @id @default(cuid())
+  userId     String       @unique
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   MailProvider
+  email      String // the address mail is sent from (always the user's sign-in email)
+  fromName   String       @default("")
+  secret     String       @db.Text // encrypted (src/lib/secret.ts): refresh token, or SMTP password
+  smtpHost   String       @default("")
+  smtpPort   Int          @default(587)
+  smtpSecure Boolean      @default(false) // true: TLS from the start (usually port 465); false: STARTTLS
+  smtpUser   String       @default("")
+  dailyLimit Int          @default(400) // campaign emails per day from this mailbox
+  lastError  String       @default("")
+  lastUsedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING // queued recipients are being sent (also while waiting for the next day's limit)
+  PAUSED // stopped by a person, or because the mailbox needs reconnecting
+  SENT
+  CANCELLED
+}
+
+model EmailCampaign {
+  id             String           @id @default(cuid())
+  name           String // internal name
+  subject        String           @default("")
+  preheader      String           @default("") // the grey preview line inboxes show after the subject
+  body           String           @default("") @db.Text // plain text with light formatting (src/lib/email/render.ts)
+  buttonLabel    String           @default("")
+  buttonUrl      String           @default("")
+  // Audience: who is eligible is decided by consent (src/lib/email/audience.ts); these narrow it.
+  audBranchId    String?
+  audType        String           @default("") // "", BUSINESS, INDIVIDUAL
+  audLeadSource  String           @default("")
+  audOptedInOnly Boolean          @default(false)
+  status         CampaignStatus   @default(DRAFT)
+  senderId       String? // whose mailbox it goes out from; set when sending starts
+  sender         User?            @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  baseUrl        String           @default("") // site address for unsubscribe links, saved when sending starts
+  pausedReason   String           @default("")
+  createdByName  String           @default("")
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  recipients     EmailRecipient[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([status])
+}
+
+enum RecipientStatus {
+  QUEUED
+  SENDING // claimed by a sender right now
+  SENT
+  FAILED
+  SKIPPED // unsubscribed or no longer eligible by the time their turn came
+}
+
+model EmailRecipient {
+  id             String          @id @default(cuid())
+  campaignId     String
+  campaign       EmailCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email          String
+  name           String          @default("")
+  status         RecipientStatus @default(QUEUED)
+  error          String          @default("")
+  claimedAt      DateTime?
+  sentAt         DateTime?
+  unsubscribedAt DateTime?
+
+  @@unique([campaignId, email])
+  @@index([campaignId, status])
+  @@index([sentAt])
 }
