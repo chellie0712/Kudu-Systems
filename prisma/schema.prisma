@@ -132,6 +132,10 @@ model Settings {
   pcoNumber          String  @default("")
   pcoSignature       String? @db.Text // PNG data URL printed in the PCO block
   logo               String? @db.Text // company logo as an image data URL, printed on documents
+  // Quotation and invoice layouts (src/lib/docLayout.ts): one of classic, statement, modern, minimal, boxed
+  quoteLayout        String  @default("classic")
+  invoiceLayout      String  @default("classic")
+  docStyle           Json    @default("{}") // colour, font, logo, columns and wording (DocStyle)
   warrantyMonths     Int     @default(3)
   // Labour billing
   labourRate         Int     @default(0) // cents per hour excl. VAT

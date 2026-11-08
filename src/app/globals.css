@@ -63,6 +63,12 @@ body {
   }
 }
 
+/* Quotation/invoice layouts keep their colour fills when printed or saved as PDF. */
+.doc-sheet {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 /* Documents (quotations, job cards, invoices) print cleanly on A4. */
 @media print {
   @page {
