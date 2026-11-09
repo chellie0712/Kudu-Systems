@@ -16,6 +16,8 @@ import { QueryTable } from "@/components/Queries";
 import { isOpen } from "@/lib/queries";
 import { PortalAccessTab } from "@/components/PortalAccess";
 import { currentCompany } from "@/lib/db";
+import { setEmailConsent } from "@/app/actions/email";
+import { CONSENT_HELP, CONSENT_LABELS } from "@/lib/email/audience";
 
 const tabs = [
   { key: "info", label: "Information" },
@@ -181,6 +183,29 @@ export default async function CustomerPage({
                 </ul>
               )}
             </div>
+            {can(user.role, "campaigns.edit") && (
+              <div className="card p-6">
+                <SectionTitle>Email marketing</SectionTitle>
+                <p className="text-sm font-medium">{CONSENT_LABELS[customer.emailConsent]}</p>
+                <p className="mb-1 text-xs text-charcoal-500">{CONSENT_HELP[customer.emailConsent]}</p>
+                {customer.emailConsent === "UNKNOWN" && (
+                  <p className="mb-1 text-xs text-charcoal-600">
+                    {live.length ? "Has an issued invoice, so they receive campaigns." : "No issued invoice yet, so campaigns are not sent to them."}
+                  </p>
+                )}
+                {customer.emailConsentAt && <p className="text-xs text-charcoal-400">{customer.emailConsentSource} · {fmtDateTime(customer.emailConsentAt)}</p>}
+                {can(user.role, "customers.edit") && (
+                  <form action={setEmailConsent} className="mt-3 space-y-2">
+                    <input type="hidden" name="id" value={id} />
+                    <select name="emailConsent" className="input" defaultValue={customer.emailConsent}>
+                      {Object.entries(CONSENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                    <input name="consentNote" className="input" placeholder="How and when, e.g. ticked box on quote form 3 May" maxLength={200} />
+                    <button className="btn-outline w-full">Save preference</button>
+                  </form>
+                )}
+              </div>
+            )}
             <div className="card space-y-2 p-6">
               <SectionTitle>Manage</SectionTitle>
               <form action={setCustomerArchived}>
