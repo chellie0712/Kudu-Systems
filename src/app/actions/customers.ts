@@ -6,6 +6,7 @@ import { CustomerType } from "@prisma/client";
 import { requirePermission } from "@/auth";
 import { tenantDb, type TenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
+import { ensurePrimary } from "@/lib/contacts";
 
 async function validBranch(db: TenantDb, id: string): Promise<string | null> {
   if (!id) return null;
@@ -19,10 +20,6 @@ export async function saveCustomer(fd: FormData) {
   const data = {
     type: str(fd, "type") === "INDIVIDUAL" ? CustomerType.INDIVIDUAL : CustomerType.BUSINESS,
     name: str(fd, "name"),
-    contactPerson: str(fd, "contactPerson"),
-    email: str(fd, "email"),
-    phone: str(fd, "phone"),
-    altPhone: str(fd, "altPhone"),
     vatNumber: str(fd, "vatNumber"),
     regNumber: str(fd, "regNumber"),
     billingAddress: str(fd, "billingAddress"),
@@ -34,9 +31,16 @@ export async function saveCustomer(fd: FormData) {
     ...(fd.has("branchId") ? { branchId: (await validBranch(db, str(fd, "branchId"))) } : {}),
   };
   if (!data.name) throw new Error("Customer name is required");
-  const customer = id
-    ? await db.customer.update({ where: { id }, data })
-    : await db.customer.create({ data });
+  // The contact fields on the customer form are the primary contact's.
+  const primary = { name: str(fd, "contactPerson"), email: str(fd, "email"), phone: str(fd, "phone"), mobile: str(fd, "altPhone") };
+  const customer = await db.$transaction(async (tx) => {
+    const c = id ? await tx.customer.update({ where: { id }, data }) : await tx.customer.create({ data });
+    const existing = await tx.customerContact.findFirst({ where: { customerId: c.id, isPrimary: true } });
+    if (existing) await tx.customerContact.update({ where: { id: existing.id }, data: primary });
+    else if (Object.values(primary).some(Boolean)) await tx.customerContact.create({ data: { ...primary, customerId: c.id, isPrimary: true } });
+    await ensurePrimary(tx, c.id);
+    return c;
+  });
   revalidatePath("/customers");
   redirect(`/customers/${customer.id}?msg=Customer+saved`);
 }

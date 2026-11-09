@@ -21,9 +21,17 @@ export default async function CustomersPage({
       ...(await customerBranchWhere()),
       ...(q
         ? {
-            OR: ["name", "contactPerson", "email", "phone", "siteAddress"].map((f) => ({
-              [f]: { contains: q, mode: "insensitive" as const },
-            })),
+            OR: [
+              ...["name", "contactPerson", "email", "phone", "siteAddress"].map((f) => ({
+                [f]: { contains: q, mode: "insensitive" as const },
+              })),
+              // Any of the customer's contacts, not only the primary one.
+              {
+                contacts: {
+                  some: { OR: ["name", "email", "phone", "mobile"].map((f) => ({ [f]: { contains: q, mode: "insensitive" as const } })) },
+                },
+              },
+            ],
           }
         : {}),
     },

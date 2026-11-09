@@ -19,7 +19,7 @@ export default async function PortalQuotation({ params, searchParams }: { params
   const [q, settings] = await Promise.all([
     db.quotation.findFirst({
       where: { id, ...portalQuotes(user.customerId) },
-      include: { customer: { include: { branch: true } }, items: { orderBy: { sortOrder: "asc" } } },
+      include: { customer: { include: { branch: true } }, contact: true, items: { orderBy: { sortOrder: "asc" } } },
     }),
     getSettings(),
   ]);

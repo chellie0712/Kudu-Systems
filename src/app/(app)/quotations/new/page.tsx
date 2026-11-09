@@ -1,6 +1,7 @@
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { customersForPicker } from "@/lib/contacts";
 import { PageHeader } from "@/components/ui";
 import { QuotationForm } from "@/components/QuotationForm";
 
@@ -11,7 +12,7 @@ export default async function NewQuotationPage({ searchParams }: { searchParams:
   await requirePermission("quotations.edit");
   const { customerId } = await searchParams;
   const [customers, settings] = await Promise.all([
-    db.customer.findMany({ where: { archived: false }, select: { id: true, name: true, siteAddress: true }, orderBy: { name: "asc" } }),
+    customersForPicker(db, { archived: false }),
     getSettings(),
   ]);
   return (

@@ -30,18 +30,6 @@ export function CustomerForm({
           <Field label="Name (company or full name) *">
             <input name="name" required className="input" defaultValue={c?.name} />
           </Field>
-          <Field label="Contact person">
-            <input name="contactPerson" className="input" defaultValue={c?.contactPerson} />
-          </Field>
-          <Field label="Email">
-            <input name="email" type="email" className="input" defaultValue={c?.email} />
-          </Field>
-          <Field label="Phone">
-            <input name="phone" type="tel" className="input" defaultValue={c?.phone} />
-          </Field>
-          <Field label="Alternative phone">
-            <input name="altPhone" type="tel" className="input" defaultValue={c?.altPhone} />
-          </Field>
           <Field label="VAT number">
             <input name="vatNumber" className="input" defaultValue={c?.vatNumber} />
           </Field>
@@ -57,6 +45,26 @@ export function CustomerForm({
             </Field>
           )}
         </div>
+      </section>
+      <section>
+        <SectionTitle>Primary contact</SectionTitle>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Contact person">
+            <input name="contactPerson" className="input" defaultValue={c?.contactPerson} />
+          </Field>
+          <Field label="Email">
+            <input name="email" type="email" className="input" defaultValue={c?.email} />
+          </Field>
+          <Field label="Phone">
+            <input name="phone" type="tel" className="input" defaultValue={c?.phone} />
+          </Field>
+          <Field label="Mobile / alternative phone">
+            <input name="altPhone" type="tel" className="input" defaultValue={c?.altPhone} />
+          </Field>
+        </div>
+        <p className="mt-2 text-xs text-charcoal-500">
+          The person quotations, job cards and invoices go to unless you pick someone else. Add more people on the customer&apos;s Contacts tab.
+        </p>
       </section>
       <section>
         <SectionTitle>How they found you</SectionTitle>

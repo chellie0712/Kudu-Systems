@@ -10,6 +10,7 @@ import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
+import { contactForDoc } from "@/lib/contacts";
 import { autoSend, removePayment } from "@/lib/accounting/sync";
 
 /** Recalculate amount paid and set PAID / PARTIALLY_PAID / SENT accordingly. */
@@ -66,14 +67,15 @@ export async function saveInvoice(fd: FormData) {
     ...totals,
   };
   if (!data.customerId) throw new Error("Choose a customer");
+  const contactId = await contactForDoc(db, data.customerId, str(fd, "contactId"));
   const itemRows = items.map((it, i) => ({ ...it, sortOrder: i }));
 
   const inv = id
     ? await db.$transaction(async (tx) => {
         await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
-        return tx.invoice.update({ where: { id }, data: { ...data, items: { create: itemRows } } });
+        return tx.invoice.update({ where: { id }, data: { ...data, contactId, items: { create: itemRows } } });
       })
-    : await db.invoice.create({ data: { ...data, number: await nextNumber("invoice"), items: { create: itemRows } } });
+    : await db.invoice.create({ data: { ...data, contactId, number: await nextNumber("invoice"), items: { create: itemRows } } });
   await refreshPaymentStatus(inv.id);
   await autoSend(db, inv.id);
   revalidatePath("/invoices");

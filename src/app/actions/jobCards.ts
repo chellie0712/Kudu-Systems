@@ -9,6 +9,7 @@ import { tenantDb } from "@/lib/db";
 import { optDate, parseJson, str } from "@/lib/form";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
+import { contactForDoc } from "@/lib/contacts";
 import { syncJobCardEvent } from "@/lib/jobCardCalendar";
 import { applySignOff, signOffProblems } from "@/lib/signoff";
 import { deleteGoogleEvent } from "@/lib/google";
@@ -80,6 +81,7 @@ export async function saveJobCard(fd: FormData) {
   const assignment = canAssign
     ? {
         customerId: str(fd, "customerId"),
+        contactId: await contactForDoc(db, str(fd, "customerId"), str(fd, "contactId")),
         technicianId,
         technician: await technicianName(technicianId, str(fd, "technician")),
         jobType: str(fd, "jobType"),
@@ -235,6 +237,7 @@ export async function createInvoiceFromJobCard(fd: FormData) {
     data: {
       number: await nextNumber("invoice"),
       customerId: jc.customerId,
+      contactId: jc.contactId ?? q?.contactId ?? (await contactForDoc(db, jc.customerId, "")),
       jobCardId: jc.id,
       quotationId: q?.id ?? null,
       issueDate: now,

@@ -31,6 +31,7 @@ export default async function QuotationPage({
       where: { id },
       include: {
         customer: { include: { branch: true } },
+        contact: true,
         items: { orderBy: { sortOrder: "asc" } },
         jobCards: { select: { id: true, number: true, status: true } },
         invoices: { select: { id: true, number: true, status: true } },

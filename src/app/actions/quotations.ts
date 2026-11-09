@@ -9,6 +9,7 @@ import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
+import { contactForDoc, jobCardContactFields } from "@/lib/contacts";
 
 export async function saveQuotation(fd: FormData) {
   const db = await tenantDb();
@@ -34,15 +35,16 @@ export async function saveQuotation(fd: FormData) {
     ...totals,
   };
   if (!data.customerId) throw new Error("Choose a customer");
+  const contactId = await contactForDoc(db, data.customerId, str(fd, "contactId"));
   const itemRows = items.map((it, i) => ({ ...it, sortOrder: i }));
 
   const quote = id
     ? await db.$transaction(async (tx) => {
         await tx.quotationItem.deleteMany({ where: { quotationId: id } });
-        return tx.quotation.update({ where: { id }, data: { ...data, items: { create: itemRows } } });
+        return tx.quotation.update({ where: { id }, data: { ...data, contactId, items: { create: itemRows } } });
       })
     : await db.quotation.create({
-        data: { ...data, number: await nextNumber("quote"), items: { create: itemRows } },
+        data: { ...data, contactId, number: await nextNumber("quote"), items: { create: itemRows } },
       });
   revalidatePath("/quotations");
   redirect(`/quotations/${quote.id}?msg=Quotation+saved`);
@@ -80,7 +82,7 @@ export async function createJobCardFromQuotation(fd: FormData) {
   await requirePermission("jobcards.create");
   const q = await db.quotation.findUniqueOrThrow({
     where: { id: str(fd, "id") },
-    include: { customer: true, items: { orderBy: { sortOrder: "asc" } } },
+    include: { customer: true, contact: true, items: { orderBy: { sortOrder: "asc" } } },
   });
   const scope = [
     q.title,
@@ -93,9 +95,9 @@ export async function createJobCardFromQuotation(fd: FormData) {
       number: await nextNumber("jobCard"),
       customerId: q.customerId,
       quotationId: q.id,
+      contactId: q.contactId ?? (await contactForDoc(db, q.customerId, "")),
       siteAddress: q.siteAddress || q.customer.siteAddress || q.customer.billingAddress,
-      siteContact: q.customer.contactPerson || (q.customer.type === "INDIVIDUAL" ? q.customer.name : ""),
-      contactNumber: q.customer.phone,
+      ...jobCardContactFields(q.customer, q.contact),
       scopeOfWork: scope,
     },
   });
@@ -118,6 +120,7 @@ export async function createInvoiceFromQuotation(fd: FormData) {
     data: {
       number: await nextNumber("invoice"),
       customerId: q.customerId,
+      contactId: q.contactId ?? (await contactForDoc(db, q.customerId, "")),
       quotationId: q.id,
       // Link the job card automatically only when there is exactly one.
       jobCardId: q.jobCards.length === 1 ? q.jobCards[0].id : null,

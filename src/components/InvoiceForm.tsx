@@ -1,4 +1,6 @@
-import type { Customer, Invoice, InvoiceItem, JobCard, Settings } from "@prisma/client";
+import type { Invoice, InvoiceItem, JobCard, Settings } from "@prisma/client";
+import type { CustomerWithContacts } from "@/lib/contacts";
+import { CustomerContactPicker } from "./CustomerContactPicker";
 import { saveInvoice } from "@/app/actions/invoices";
 import { addDays, toDateInput } from "@/lib/format";
 import { LineItemsEditor } from "./LineItemsEditor";
@@ -12,7 +14,7 @@ export function InvoiceForm({
   customerId,
 }: {
   invoice?: Invoice & { items: InvoiceItem[] };
-  customers: Pick<Customer, "id" | "name">[];
+  customers: CustomerWithContacts[];
   jobCards: (Pick<JobCard, "id" | "number" | "customerId">)[];
   settings: Settings;
   customerId?: string;
@@ -25,12 +27,7 @@ export function InvoiceForm({
       <section>
         <SectionTitle>Invoice</SectionTitle>
         <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Customer *" className="md:col-span-2">
-            <select name="customerId" required className="input" defaultValue={inv?.customerId ?? customerId ?? ""}>
-              <option value="" disabled>Choose a customer…</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
+          <CustomerContactPicker customers={customers} customerId={inv?.customerId ?? customerId ?? ""} contactId={inv?.contactId} />
           <Field label="Status">
             <select name="status" className="input" defaultValue={inv?.status ?? "DRAFT"}>
               <option value="DRAFT">Draft</option>
