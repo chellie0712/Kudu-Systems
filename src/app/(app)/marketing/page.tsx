@@ -40,7 +40,7 @@ export default async function MarketingPage({
   searchParams: Promise<{ from?: string; to?: string; preset?: string; msg?: string; err?: string }>;
 }) {
   const user = await requirePermission("reports.view");
-  const showProfit = can(user.role, "profit.view");
+  const showProfit = can(user, "profit.view");
   const db = await tenantDb();
   const sp = await searchParams;
   const p = periodFrom(sp);
@@ -154,7 +154,7 @@ export default async function MarketingPage({
       <PageHeader
         title="Marketing & profit"
         subtitle={`${fmtDate(p.from)} – ${fmtDate(new Date(p.to.getTime() - 1))} · all branches`}
-        actions={can(user.role, "expenses.manage") ? <Link href={`/expenses?${qs}`} className="btn-outline">Expenses &amp; other ad spend</Link> : undefined}
+        actions={can(user, "expenses.manage") ? <Link href={`/expenses?${qs}`} className="btn-outline">Expenses &amp; other ad spend</Link> : undefined}
       />
       <Flash message={sp.msg} />
       <Flash message={sp.err} tone="error" />
@@ -174,7 +174,7 @@ export default async function MarketingPage({
         ) : (
           <span>
             Google Ads is not connected.{" "}
-            {can(user.role, "settings.manage") ? <Link href="/settings#google-ads" className="text-kudu-600 hover:underline">Connect it in Settings</Link> : "An admin can connect it in Settings."}
+            {can(user, "settings.manage") ? <Link href="/settings#google-ads" className="text-kudu-600 hover:underline">Connect it in Settings</Link> : "An admin can connect it in Settings."}
           </span>
         )}
       </div>
@@ -281,7 +281,7 @@ export default async function MarketingPage({
           <p className="mb-8 text-xs text-charcoal-500">
             Revenue is invoices issued in each month (not drafts or cancelled), excluding VAT. Materials are stock used on jobs at today&apos;s cost price.
             Advertising is Google Ads plus other ad spend entered on the Expenses page. Expenses are what you{" "}
-            {can(user.role, "expenses.manage") ? <Link href={`/expenses?${qs}`} className="text-kudu-600 hover:underline">record on the Expenses page</Link> : "record on the Expenses page"}.
+            {can(user, "expenses.manage") ? <Link href={`/expenses?${qs}`} className="text-kudu-600 hover:underline">record on the Expenses page</Link> : "record on the Expenses page"}.
             Labour is only included if you record wages there.
           </p>
         </>

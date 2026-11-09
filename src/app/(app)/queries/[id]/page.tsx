@@ -28,7 +28,7 @@ export default async function QueryPage({ params, searchParams }: { params: Prom
     },
   });
   if (!q) notFound();
-  const edit = can(user.role, "queries.edit");
+  const edit = can(user, "queries.edit");
   const staff = edit ? await staffList(db, q.assignedToId) : [];
   const overdue = isOverdue(q);
   const nextStatuses = (Object.keys(QUERY_STATUS_LABELS) as QueryStatus[]).filter((s) => s !== q.status);
@@ -71,7 +71,7 @@ export default async function QueryPage({ params, searchParams }: { params: Prom
           ) : (
             <span className="text-charcoal-400">None</span>
           )}
-          {edit && can(user.role, "jobcards.create") && isOpen(q.status) && (
+          {edit && can(user, "jobcards.create") && isOpen(q.status) && (
             <form action={createJobCardFromQuery}>
               <input type="hidden" name="id" value={q.id} />
               <button className="btn-outline mt-2 py-1 text-xs">{q.jobCard ? "Create follow-up job card" : "Create job card"}</button>
@@ -146,7 +146,7 @@ export default async function QueryPage({ params, searchParams }: { params: Prom
         </details>
       )}
 
-      {can(user.role, "queries.delete") && (
+      {can(user, "queries.delete") && (
         <form action={deleteQuery} className="text-right">
           <input type="hidden" name="id" value={q.id} />
           <ConfirmButton message={`Delete query ${q.number} and its timeline?`}>Delete query</ConfirmButton>

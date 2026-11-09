@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { can, type Permission, type Role } from "@/lib/permissions";
+import { can, type Access, type Permission } from "@/lib/permissions";
 
 const items: { href: string; label: string; icon: string; permission?: Permission; hideWith?: Permission }[] = [
   { href: "/", label: "Dashboard", icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" },
@@ -21,9 +21,9 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
   { permission: "settings.manage", href: "/settings", label: "Settings", icon: "M10.3 4.3a1.7 1.7 0 013.4 0 1.7 1.7 0 002.6 1.1 1.7 1.7 0 012.4 2.4 1.7 1.7 0 001 2.5 1.7 1.7 0 010 3.4 1.7 1.7 0 00-1 2.6 1.7 1.7 0 01-2.4 2.4 1.7 1.7 0 00-2.6 1 1.7 1.7 0 01-3.4 0 1.7 1.7 0 00-2.5-1 1.7 1.7 0 01-2.4-2.4 1.7 1.7 0 00-1.1-2.6 1.7 1.7 0 010-3.4 1.7 1.7 0 001.1-2.5 1.7 1.7 0 012.4-2.4 1.7 1.7 0 002.5-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
-export function Nav({ role }: { role: Role }) {
+export function Nav({ access }: { access: Access }) {
   const path = usePathname();
-  const visible = items.filter((item) => (!item.permission || can(role, item.permission)) && !(item.hideWith && can(role, item.hideWith)));
+  const visible = items.filter((item) => (!item.permission || can(access, item.permission)) && !(item.hideWith && can(access, item.hideWith)));
   return (
     <nav className="flex gap-1 overflow-x-auto px-2 py-2 md:flex-col md:overflow-visible md:px-3 md:py-4">
       {visible.map((item) => {

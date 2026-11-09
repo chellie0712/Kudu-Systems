@@ -15,7 +15,7 @@ import { OPEN_STATUSES, overdueBefore } from "@/lib/queries";
 export default async function Dashboard() {
   const db = await tenantDb();
   const user = await requireUser();
-  if (!can(user.role, "dashboard.money")) return <TechnicianHome user={user} db={db} />;
+  if (!can(user, "dashboard.money")) return <TechnicianHome user={user} db={db} />;
   const settings = await getSettings();
   const sym = settings.currencySymbol;
   const now = new Date();
@@ -47,10 +47,10 @@ export default async function Dashboard() {
   const overdueTotal = unpaid.filter((i) => i.dueDate < now).reduce((s, i) => s + i.total - i.amountPaid, 0);
 
   const awaitingApproval =
-    settings.invoiceApproval && can(user.role, "invoices.approve")
+    settings.invoiceApproval && can(user, "invoices.approve")
       ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" }, ...ofBranch } })
       : 0;
-  const queryCounts = can(user.role, "queries.view")
+  const queryCounts = can(user, "queries.view")
     ? await Promise.all([
         db.query.count({ where: { status: { in: OPEN_STATUSES }, ...ofBranch } }),
         db.query.count({ where: { status: { in: OPEN_STATUSES }, dueAt: { lt: overdueBefore(now) }, ...ofBranch } }),
@@ -58,7 +58,7 @@ export default async function Dashboard() {
       ])
     : null;
   // Quotes the customer accepted in the portal that nobody has turned into work yet.
-  const acceptedOnline = can(user.role, "quotations.view")
+  const acceptedOnline = can(user, "quotations.view")
     ? await db.quotation.findMany({
         where: { response: "ACCEPTED", status: "ACCEPTED", respondedAt: { gte: addDays(now, -60) }, jobCards: { none: {} }, invoices: { none: {} }, ...ofBranch },
         include: { customer: { select: { name: true } } },
@@ -66,7 +66,7 @@ export default async function Dashboard() {
         take: 5,
       })
     : [];
-  const lowStock = can(user.role, "inventory.view") ? (await stockOverview(db)).filter((i) => i.low) : [];
+  const lowStock = can(user, "inventory.view") ? (await stockOverview(db)).filter((i) => i.low) : [];
   const stats = [
     { label: "Active customers", value: String(customerCount), href: "/customers" },
     { label: "Open quotations", value: `${openQuotes._count} · ${money(openQuotes._sum.total ?? 0, sym)}`, href: "/quotations?status=SENT" },

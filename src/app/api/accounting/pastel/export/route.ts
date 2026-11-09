@@ -9,7 +9,7 @@ import { dayKey } from "@/lib/format";
 /** Settings → Accounting (Pastel): downloads a customers, invoices or receipts file. POST, because it marks what it exported. */
 export async function POST(req: Request) {
   const user = await getUser();
-  if (!user || !can(user.role, "settings.manage")) return new NextResponse("Not allowed", { status: 403 });
+  if (!user || !can(user, "settings.manage")) return new NextResponse("Not allowed", { status: 403 });
   const fd = await req.formData();
   const kind = String(fd.get("kind") ?? "");
   const format: Format = fd.get("format") === "evolution" ? "evolution" : "partner";

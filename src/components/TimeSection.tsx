@@ -26,7 +26,7 @@ export function TimeSection({
   settings: Pick<Settings, "labourRate" | "labourDescription" | "labourRoundMinutes" | "currencySymbol">;
   hasDraftInvoice: boolean;
 }) {
-  const manage = can(user.role, "time.manageAll");
+  const manage = can(user, "time.manageAll");
   const mine = entries.find((e) => !e.end && e.userId === user.id);
   const running = entries.filter((e) => !e.end);
   const total = entries.reduce((s, e) => s + entryMinutes(e), 0);

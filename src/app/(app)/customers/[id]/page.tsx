@@ -84,7 +84,7 @@ export default async function CustomerPage({
     queries: customer.queries.filter((q) => isOpen(q.status)).length,
     portal: customer.portalUsers.filter((u) => !u.disabled && u.passwordHash).length,
   };
-  const visibleTabs = tabs.filter((t) => t.key !== "portal" || can(user.role, "portal.manage"));
+  const visibleTabs = tabs.filter((t) => t.key !== "portal" || can(user, "portal.manage"));
 
   return (
     <div>
@@ -194,7 +194,7 @@ export default async function CustomerPage({
                 </ul>
               )}
               <Link href={`/customers/${id}?tab=contacts`} className="mt-3 inline-block text-sm font-medium text-kudu-600">
-                {can(user.role, "customers.edit") ? "Manage contacts →" : "All contacts →"}
+                {can(user, "customers.edit") ? "Manage contacts →" : "All contacts →"}
               </Link>
             </div>
             <div className="card p-6">
@@ -212,7 +212,7 @@ export default async function CustomerPage({
                 </ul>
               )}
             </div>
-            {can(user.role, "campaigns.edit") && (
+            {can(user, "campaigns.edit") && (
               <div className="card p-6">
                 <SectionTitle>Email marketing</SectionTitle>
                 <p className="text-sm font-medium">{CONSENT_LABELS[customer.emailConsent]}</p>
@@ -223,7 +223,7 @@ export default async function CustomerPage({
                   </p>
                 )}
                 {customer.emailConsentAt && <p className="text-xs text-charcoal-400">{customer.emailConsentSource} · {fmtDateTime(customer.emailConsentAt)}</p>}
-                {can(user.role, "customers.edit") && (
+                {can(user, "customers.edit") && (
                   <form action={setEmailConsent} className="mt-3 space-y-2">
                     <input type="hidden" name="id" value={id} />
                     <select name="emailConsent" className="input" defaultValue={customer.emailConsent}>
@@ -242,7 +242,7 @@ export default async function CustomerPage({
                 <input type="hidden" name="archived" value={String(!customer.archived)} />
                 <button className="btn-outline w-full">{customer.archived ? "Restore customer" : "Archive customer"}</button>
               </form>
-              {can(user.role, "customers.delete") && (
+              {can(user, "customers.delete") && (
                 <form action={deleteCustomer}>
                   <input type="hidden" name="id" value={id} />
                   <ConfirmButton message={`Delete ${customer.name}? This cannot be undone.`} className="btn-danger w-full">
@@ -256,7 +256,7 @@ export default async function CustomerPage({
       )}
 
       {tab === "contacts" && (
-        <CustomerContactsTab customerId={id} contacts={customer.contacts} canEdit={can(user.role, "customers.edit")} />
+        <CustomerContactsTab customerId={id} contacts={customer.contacts} canEdit={can(user, "customers.edit")} />
       )}
       {tab === "quotations" && (
         <div className="card overflow-x-auto">
@@ -275,19 +275,19 @@ export default async function CustomerPage({
       )}
       {tab === "queries" && (
         <div className="space-y-3">
-          {can(user.role, "queries.edit") && (
+          {can(user, "queries.edit") && (
             <div className="text-right"><Link href={`/queries/new?customerId=${id}`} className="btn-primary">+ Log query</Link></div>
           )}
           <div className="card overflow-x-auto">
-            {can(user.role, "queries.view") ? <QueryTable rows={customer.queries} showCustomer={false} /> : <Empty>You don&apos;t have access to queries.</Empty>}
+            {can(user, "queries.view") ? <QueryTable rows={customer.queries} showCustomer={false} /> : <Empty>You don&apos;t have access to queries.</Empty>}
           </div>
         </div>
       )}
-      {tab === "portal" && can(user.role, "portal.manage") && (
+      {tab === "portal" && can(user, "portal.manage") && (
         <PortalAccessTab customer={customer} users={customer.portalUsers} companySlug={(await currentCompany()).company.slug} companyName={settings.companyName} />
       )}
       {tab === "assets" && (
-        <CustomerAssetsTab customerId={id} assets={customer.assets} canEdit={can(user.role, "assets.edit")} canDelete={can(user.role, "assets.delete")} />
+        <CustomerAssetsTab customerId={id} assets={customer.assets} canEdit={can(user, "assets.edit")} canDelete={can(user, "assets.delete")} />
       )}
       {tab === "calendar" && (
         <div className="grid gap-6 lg:grid-cols-3">

@@ -41,7 +41,7 @@ export async function stopTimer(fd: FormData) {
   const id = str(fd, "id");
   const entry = await db.timeEntry.findUnique({ where: { id } });
   if (!entry || entry.end) redirect("/job-cards?msg=Timer+already+stopped");
-  if (entry.userId !== user.id && !can(user.role, "time.manageAll")) back(entry.jobCardId, "err", "You can only stop your own timer.");
+  if (entry.userId !== user.id && !can(user, "time.manageAll")) back(entry.jobCardId, "err", "You can only stop your own timer.");
   await db.timeEntry.update({ where: { id }, data: { end: new Date(), note: str(fd, "note") || entry.note } });
   revalidatePath(`/job-cards/${entry.jobCardId}`);
   back(entry.jobCardId, "msg", "Timer stopped");
@@ -60,7 +60,7 @@ export async function addTimeEntry(fd: FormData) {
   let who = { id: user.id, name: user.name };
   const forUser = str(fd, "userId");
   if (forUser && forUser !== user.id) {
-    if (!can(user.role, "time.manageAll")) back(jc.id, "err", "You can only record your own time.");
+    if (!can(user, "time.manageAll")) back(jc.id, "err", "You can only record your own time.");
     const u = await db.user.findUnique({ where: { id: forUser } });
     if (!u) back(jc.id, "err", "User not found.");
     who = { id: u!.id, name: u!.name || u!.email || "" };
@@ -73,7 +73,7 @@ export async function addTimeEntry(fd: FormData) {
       start: start!,
       end: end!,
       note: str(fd, "note"),
-      billable: can(user.role, "time.manageAll") ? fd.get("billable") === "on" : true,
+      billable: can(user, "time.manageAll") ? fd.get("billable") === "on" : true,
     },
   });
   revalidatePath(`/job-cards/${jc.id}`);
@@ -85,7 +85,7 @@ export async function deleteTimeEntry(fd: FormData) {
   const user = await requirePermission("time.track");
   const entry = await db.timeEntry.findUnique({ where: { id: str(fd, "id") } });
   if (!entry) redirect("/job-cards");
-  if (entry.userId !== user.id && !can(user.role, "time.manageAll")) back(entry.jobCardId, "err", "You can only delete your own time.");
+  if (entry.userId !== user.id && !can(user, "time.manageAll")) back(entry.jobCardId, "err", "You can only delete your own time.");
   if (entry.invoiceId) back(entry.jobCardId, "err", "This time is already on an invoice. Remove it from the invoice first.");
   await db.timeEntry.delete({ where: { id: entry.id } });
   revalidatePath(`/job-cards/${entry.jobCardId}`);

@@ -20,8 +20,8 @@ export default async function CalendarPage({
   searchParams: Promise<{ month?: string; customerId?: string; day?: string; msg?: string; err?: string }>;
 }) {
   const user = await requireUser();
-  const all = can(user.role, "calendar.viewAll");
-  const canEdit = can(user.role, "calendar.edit");
+  const all = can(user, "calendar.viewAll");
+  const canEdit = can(user, "calendar.edit");
   const db = await tenantDb();
   const sp = await searchParams;
   const todayKey = dayKey(new Date());
@@ -93,7 +93,7 @@ export default async function CalendarPage({
               <input type="hidden" name="returnTo" value={qs({})} />
               <button className="btn-dark">⟳ Sync with Google</button>
             </form>
-          ) : can(user.role, "settings.manage") ? (
+          ) : can(user, "settings.manage") ? (
             <Link href="/settings#google" className="btn-outline">Connect Google Calendar</Link>
           ) : undefined
         }

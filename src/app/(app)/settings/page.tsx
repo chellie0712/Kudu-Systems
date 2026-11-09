@@ -19,7 +19,7 @@ import { JOB_TYPES } from "@/lib/jobcard";
 import { SignaturePad } from "@/components/JobCardEditors";
 import { addUser, resetPassword, setUserDisabled, setUserLabourRate, setUserRole } from "@/app/actions/users";
 import { centsToInput } from "@/lib/format";
-import { PERMISSION_TABLE, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, can } from "@/lib/permissions";
+import { CUSTOM_ROLE_PREFIX, PERMISSION_TABLE, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS, can } from "@/lib/permissions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { deleteBranch, saveBranch, setUserBranch } from "@/app/actions/branches";
 import { LogoInput } from "@/components/LogoInput";
@@ -37,6 +37,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { msg, err } = await searchParams;
   const s = await getSettings();
   const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
+  const customRoles = await db.customRole.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+  const roleOptions = (
+    <>
+      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+      {customRoles.length > 0 && (
+        <optgroup label="Custom roles">
+          {customRoles.map((r) => <option key={r.id} value={`${CUSTOM_ROLE_PREFIX}${r.id}`}>{r.name}</option>)}
+        </optgroup>
+      )}
+    </>
+  );
   const branches = await db.branch.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { customers: true, users: true } } } });
   const products = await db.product.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
   const jobStatuses = await db.jobStatus.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { jobCards: true } } } });
@@ -203,8 +214,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               </div>
               <form action={setUserRole} className="flex gap-2">
                 <input type="hidden" name="id" value={u.id} />
-                <select name="role" defaultValue={u.role} className="input w-36 py-1.5" aria-label={`Role of ${u.email}`}>
-                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                <select name="role" defaultValue={u.customRoleId ? `${CUSTOM_ROLE_PREFIX}${u.customRoleId}` : u.role} className="input w-40 py-1.5" aria-label={`Role of ${u.email}`}>
+                  {roleOptions}
                 </select>
                 <button className="btn-outline py-1.5">Set role</button>
               </form>
@@ -250,8 +261,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <input name="name" className="input w-44 flex-none" placeholder="Name" />
           <input name="email" type="email" className="input w-56 flex-none" placeholder="Email" required />
           <input name="password" type="password" minLength={10} className="input w-44 flex-none" placeholder="Password" autoComplete="new-password" required />
-          <select name="role" defaultValue="OFFICE" className="input w-36 flex-none" aria-label="Role">
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          <select name="role" defaultValue="OFFICE" className="input w-40 flex-none" aria-label="Role">
+            {roleOptions}
           </select>
           <button className="btn-primary py-1.5">+ Add user</button>
         </form>
@@ -288,6 +299,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             {ROLES.map((r) => <li key={r}><b className="text-charcoal-700">{ROLE_LABELS[r]}:</b> {ROLE_DESCRIPTIONS[r]}</li>)}
           </ul>
           <p className="mt-2 text-xs text-charcoal-500">To give a technician a job, choose them under “Assigned to” on the job card.</p>
+          <p className="mt-3 text-sm">
+            Need something in between? <Link href="/settings/roles" className="font-medium text-kudu-600">Set up custom roles →</Link>{" "}
+            <span className="text-charcoal-500">{customRoles.length ? `(${customRoles.length}: ${customRoles.map((r) => r.name).join(", ")})` : "You choose exactly what each one can see, edit and approve."}</span>
+          </p>
         </div>
       </div>
 

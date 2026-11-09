@@ -14,7 +14,7 @@ export const metadata = { title: "Job Cards" };
 export default async function JobCardsPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; msg?: string }> }) {
   const db = await tenantDb();
   const user = await requireUser();
-  const all = can(user.role, "jobcards.viewAll");
+  const all = can(user, "jobcards.viewAll");
   const { status, q = "", msg } = await searchParams;
   const customs = await db.jobStatus.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } });
   const customId = status?.startsWith(CUSTOM_PREFIX) ? status.slice(CUSTOM_PREFIX.length) : null;
@@ -44,12 +44,12 @@ export default async function JobCardsPage({ searchParams }: { searchParams: Pro
     <div>
       <PageHeader
         title={all ? "Job Cards" : "My Job Cards"}
-        actions={can(user.role, "jobcards.create") ? <Link href="/job-cards/new" className="btn-primary">+ New job card</Link> : undefined}
+        actions={can(user, "jobcards.create") ? <Link href="/job-cards/new" className="btn-primary">+ New job card</Link> : undefined}
       />
       <Flash message={msg} />
       <StatusFilter base="/job-cards" current={status} q={q} statuses={[...STAGES, ...customs.map((c) => ({ value: `${CUSTOM_PREFIX}${c.id}`, label: c.name }))]} />
       <div className="card overflow-x-auto">
-        <JobCardTable rows={rows} linkCustomers={can(user.role, "customers.view")} empty={all ? undefined : "No job cards are assigned to you."} />
+        <JobCardTable rows={rows} linkCustomers={can(user, "customers.view")} empty={all ? undefined : "No job cards are assigned to you."} />
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const url = new URL(req.url);
   const back = (key: "msg" | "err", text: string) => NextResponse.redirect(new URL(`/settings?${key}=${encodeURIComponent(text)}#accounting`, req.url));
   const user = await getUser();
-  if (!user || !can(user.role, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
+  if (!user || !can(user, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
   const a = apiAdapter(provider);
   if (!a || !a.exchangeCode) return back("err", "Unknown accounting package.");
   const jar = await cookies();

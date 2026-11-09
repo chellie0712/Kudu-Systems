@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const back = (q: string) => NextResponse.redirect(new URL(`/settings?${q}#google-ads`, req.url));
   const user = await getUser();
-  if (!user || !can(user.role, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
+  if (!user || !can(user, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
   const jar = await cookies();
   const expected = jar.get(STATE_COOKIE)?.value;
   jar.delete({ name: STATE_COOKIE, path: "/api/google-ads" });

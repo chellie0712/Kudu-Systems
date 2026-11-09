@@ -36,8 +36,8 @@ export function StockSection({
   hasDraftInvoice: boolean;
   symbol: string;
 }) {
-  const office = can(user.role, "inventory.manage");
-  const bill = can(user.role, "materials.bill");
+  const office = can(user, "inventory.manage");
+  const bill = can(user, "materials.bill");
   const open = used.filter((u) => !u.invoice);
   const value = open.reduce((s, u) => s + Math.round(u.quantity * u.item.sellPrice), 0);
   const only = locations.length === 1 ? locations[0] : null;

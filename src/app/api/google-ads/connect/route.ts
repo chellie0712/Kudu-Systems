@@ -9,7 +9,7 @@ import { ADS_SCOPE, STATE_COOKIE, adsOAuth, callbackUrl, googleAdsConfigured } f
 export async function GET(req: Request) {
   const user = await getUser();
   const back = (q: string) => NextResponse.redirect(new URL(`/settings?${q}#google-ads`, req.url));
-  if (!user || !can(user.role, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
+  if (!user || !can(user, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
   if (!googleAdsConfigured()) return back(`err=${encodeURIComponent("Google Ads is not set up on the server yet.")}`);
   const state = randomBytes(24).toString("base64url");
   (await cookies()).set(STATE_COOKIE, state, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 600, path: "/api/google-ads" });

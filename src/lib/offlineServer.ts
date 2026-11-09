@@ -7,7 +7,7 @@ import { tenantDb, type TenantDb } from "@/lib/db";
 export async function offlineAccess(jobId: string): Promise<{ user: AppUser; db: TenantDb; jc: JobCard } | { status: number; error: string }> {
   const user = await getUser();
   if (!user) return { status: 401, error: "You are signed out. Sign in again to send your work." };
-  if (!can(user.role, "jobcards.edit")) return { status: 403, error: "You may not fill in job cards." };
+  if (!can(user, "jobcards.edit")) return { status: 403, error: "You may not fill in job cards." };
   const db = await tenantDb();
   const jc = jobId ? await db.jobCard.findUnique({ where: { id: jobId } }) : null;
   if (!jc) return { status: 404, error: "This job card no longer exists." };
