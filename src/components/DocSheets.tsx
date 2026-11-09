@@ -1,11 +1,13 @@
-import type { Branch, Customer, Invoice, InvoiceItem, Quotation, QuotationItem, Settings } from "@prisma/client";
+import type { Branch, Customer, CustomerContact, Invoice, InvoiceItem, Quotation, QuotationItem, Settings } from "@prisma/client";
 import { fmtDate } from "@/lib/format";
 import { branchContact } from "@/components/Document";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { DocLayout } from "@/components/DocLayouts";
 import { layoutId, parseDocStyle, type DocData } from "@/lib/docLayout";
+import { withDocContact } from "@/lib/contacts";
 
-type WithCustomer = { customer: Customer & { branch: Branch | null } };
+/** The document's own contact, when it has one, prints instead of the customer's primary contact. */
+type WithCustomer = { customer: Customer & { branch: Branch | null }; contact?: CustomerContact | null };
 
 /** Company details and banking as printed on documents (the branch's contact details win where filled in). */
 export function companyForDocs(settings: Settings, branch?: Branch | null): DocData["company"] {
@@ -68,7 +70,7 @@ export function QuotationSheet({ q, settings }: { q: Quotation & WithCustomer & 
     ],
     heading: q.title,
     company: companyForDocs(settings, q.customer.branch),
-    customer: customerForDocs(q.customer, q.siteAddress),
+    customer: customerForDocs(withDocContact(q.customer, q.contact), q.siteAddress),
     items: q.items,
     totals: { subtotal: q.subtotal, discount: q.discount, vatRate: q.vatRate, vatAmount: q.vatAmount, total: q.total, paid: 0 },
     notes: q.notes,
@@ -91,7 +93,7 @@ export function InvoiceSheet({ inv, settings }: { inv: Invoice & WithCustomer & 
     ],
     heading: "",
     company: companyForDocs(settings, inv.customer.branch),
-    customer: customerForDocs(inv.customer),
+    customer: customerForDocs(withDocContact(inv.customer, inv.contact)),
     items: inv.items,
     totals: { subtotal: inv.subtotal, discount: inv.discount, vatRate: inv.vatRate, vatAmount: inv.vatAmount, total: inv.total, paid: inv.amountPaid },
     notes: inv.notes,

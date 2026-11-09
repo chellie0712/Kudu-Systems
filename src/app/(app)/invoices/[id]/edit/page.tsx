@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { customersForPicker } from "@/lib/contacts";
 import { Flash, PageHeader } from "@/components/ui";
 import { InvoiceForm } from "@/components/InvoiceForm";
 
@@ -19,7 +20,7 @@ export default async function EditInvoicePage({
   const invoice = await db.invoice.findUnique({ where: { id }, include: { items: { orderBy: { sortOrder: "asc" } } } });
   if (!invoice) notFound();
   const [customers, jobCards, settings] = await Promise.all([
-    db.customer.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    customersForPicker(db, {}, invoice.contactId),
     db.jobCard.findMany({ where: { customerId: invoice.customerId }, select: { id: true, number: true, customerId: true }, orderBy: { createdAt: "desc" } }),
     getSettings(),
   ]);

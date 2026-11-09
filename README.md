@@ -6,7 +6,7 @@ Customer management and job workflow for Kudu Systems: customer profiles with qu
 
 | Area | Features |
 | --- | --- |
-| **Customers** | Business or individual, contacts, billing and site addresses, VAT/reg numbers, notes, archive. Profile tabs: Information, Quotations, Job Cards, Invoices, Calendar, with invoiced / outstanding totals. |
+| **Customers** | Business or individual, any number of contacts (one primary), billing and site addresses, VAT/reg numbers, notes, archive. Profile tabs: Information, Contacts, Quotations, Job Cards, Invoices, Calendar, with invoiced / outstanding totals. |
 | **Quotations** | Line items with live totals, discount, VAT, validity date, notes and terms. Status: Draft → Sent → Accepted / Declined / Expired. Printable A4 (Print → Save as PDF). |
 | **Job cards** | *Job Card & Service Warranty*, laid out like the PurePest Solutions card in 7 sections: job details, client details, work performed (area/pest treated, description), before/after photos plus up to 8 more, warranty details (number, start/end dates with end auto-set N months after start, covers, active ingredients from a registered-products list, comments), warranty terms, and client sign-off (confirmation tick, signatory, on-screen signature with timestamp, PCO number and signature). Created blank or **from a quotation**. A job can only be saved as *Completed* once it has a work description, a signature and the confirmation tick. Printable. **Client sign-off on the phone** (`/sign/<job>`): a full-screen page the technician hands to the client, with a job summary, the warranty terms, a large signature box, the confirmation tick, a 1–5 star rating and a comment. Signing completes the job and stops any timer still running on it. The rating and comment show on the job card on screen only, not on the printout. |
 | **Invoices** | Created blank, **from a quotation** (line items copied) or **from a job card**. Payments (partial or full) update the status automatically; overdue invoices are flagged. Banking details print on the invoice. |
@@ -128,6 +128,16 @@ Off by default. Switch it on in **Settings → Invoice approval**, optionally on
 **Inventory** (menu, office and admins): add stock items with a unit (each, ml, L, kg…), cost and sell price excl. VAT, and a reorder level. A "Warehouse" location is created on first deploy; add vans under **Locations** and give each van its driver. Move stock with **Receive** (into a location, optionally at a new cost price), **Transfer** (e.g. warehouse to van) and **Stock count** (sets the quantity at a location to what was counted and records the difference). Every change is kept in the history on the item page. Items at or below their reorder level are flagged on the Inventory page and on the dashboard. Levels may go below zero (product used before it was booked in); they show in red until corrected.
 
 **Stock used on a job card** (the "Stock used" box on the job card page): technicians record what they used, from their own van only, and can remove their own entries until they are billed. They never see prices. Office staff can book stock out of any location. Materials are **not** added automatically when an invoice is created, because quoted prices often already include the chemicals; use **Add materials to draft invoice** on the job card to add them (one line per product at the sell price). Technicians see their van's stock under **My van**. Only admins can delete items; an item that has been billed can't be deleted, only made inactive.
+
+## Customer contacts
+
+**Contacts tab** on the customer profile: add every person you deal with at the customer, with name, role / title, email, phone, mobile and notes. One contact is **primary**; the first one added is primary automatically, and **Make primary** moves it. The contact fields on the customer form edit the primary contact, and the customer's own contact person, email and phone always show the primary contact, so accounting sync, email campaigns and the portal invite use it.
+
+- Quotations, job cards and invoices have a **Contact** select next to the customer. It starts on the primary contact; pick anyone else at the customer. The printed quotation and invoice show that contact (Attn, phone, email). On a job card, picking a contact fills the site contact and contact number, which you can still overwrite.
+- A job card or invoice created from a quotation, or an invoice created from a job card, keeps the same contact.
+- A contact that is on any document can't be deleted; **Archive** it instead. Archived contacts are left out of the selects but still print on their documents. Archiving the primary passes it to the next contact.
+- Customer search also finds customers by any of their contacts' names, emails or numbers.
+- Existing data: each customer's contact person, email, phone and alternative phone became its primary contact (migration `20261109180000_customer_contacts`). Existing documents keep printing the primary contact, as before.
 
 ## Customer assets
 

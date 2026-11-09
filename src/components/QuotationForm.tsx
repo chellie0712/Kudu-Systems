@@ -1,4 +1,6 @@
-import type { Customer, Quotation, QuotationItem, Settings } from "@prisma/client";
+import type { Quotation, QuotationItem, Settings } from "@prisma/client";
+import type { CustomerWithContacts } from "@/lib/contacts";
+import { CustomerContactPicker } from "./CustomerContactPicker";
 import { saveQuotation } from "@/app/actions/quotations";
 import { addDays, toDateInput } from "@/lib/format";
 import { LineItemsEditor } from "./LineItemsEditor";
@@ -11,7 +13,7 @@ export function QuotationForm({
   customerId,
 }: {
   quotation?: Quotation & { items: QuotationItem[] };
-  customers: Pick<Customer, "id" | "name" | "siteAddress">[];
+  customers: CustomerWithContacts[];
   settings: Settings;
   customerId?: string;
 }) {
@@ -23,14 +25,7 @@ export function QuotationForm({
       <section>
         <SectionTitle>Quotation</SectionTitle>
         <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Customer *" className="md:col-span-2">
-            <select name="customerId" required className="input" defaultValue={q?.customerId ?? customerId ?? ""}>
-              <option value="" disabled>Choose a customer…</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </Field>
+          <CustomerContactPicker customers={customers} customerId={q?.customerId ?? customerId ?? ""} contactId={q?.contactId} />
           <Field label="Status">
             <select name="status" className="input" defaultValue={q?.status ?? "DRAFT"}>
               {["DRAFT", "SENT", "ACCEPTED", "DECLINED", "EXPIRED"].map((s) => (

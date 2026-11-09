@@ -5,6 +5,7 @@ import { assignees } from "@/lib/assignees";
 import { jobCardFormExtras } from "@/lib/jobCardForm";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { customersForPicker } from "@/lib/contacts";
 import { Flash, PageHeader } from "@/components/ui";
 import { JobCardForm } from "@/components/JobCardForm";
 
@@ -29,7 +30,7 @@ export default async function EditJobCardPage({
   if (!canAccessJobCard(user, jobCard)) redirect("/no-access?need=jobcards.viewAll");
   // Technicians see the customer and assignee read-only, so only those are loaded for them.
   const [customers, people, extras] = await Promise.all([
-    db.customer.findMany({ where: canAssign ? {} : { id: jobCard.customerId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    customersForPicker(db, canAssign ? {} : { id: jobCard.customerId }, jobCard.contactId),
     canAssign ? assignees(db, jobCard.technicianId) : db.user
       .findMany({ where: { id: jobCard.technicianId ?? "" }, select: { id: true, name: true, email: true, role: true } })
       .then((us) => us.map((u) => ({ id: u.id, name: u.name || u.email || "", role: u.role }))),

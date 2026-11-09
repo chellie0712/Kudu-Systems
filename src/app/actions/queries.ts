@@ -8,6 +8,7 @@ import { tenantDb } from "@/lib/db";
 import { optDate, str } from "@/lib/form";
 import { fmtDate } from "@/lib/format";
 import { nextNumber } from "@/lib/settings";
+import { jobCardContactFields, primaryContact } from "@/lib/contacts";
 import { PRIORITY_LABELS, QUERY_STATUS_LABELS } from "@/lib/queries";
 
 const go = (path: string, kind: "msg" | "err", text: string): never =>
@@ -149,13 +150,14 @@ export async function createJobCardFromQuery(fd: FormData) {
   await requirePermission("queries.edit");
   const q = await db.query.findUnique({ where: { id: str(fd, "id") }, include: { customer: true, jobCard: { select: { number: true } } } });
   if (!q) redirect("/queries");
+  const contact = await primaryContact(db, q.customerId);
   const jc = await db.jobCard.create({
     data: {
       number: await nextNumber("jobCard"),
       customerId: q.customerId,
       siteAddress: q.customer.siteAddress || q.customer.billingAddress,
-      siteContact: q.customer.contactPerson || (q.customer.type === "INDIVIDUAL" ? q.customer.name : ""),
-      contactNumber: q.customer.phone,
+      contactId: contact?.id ?? null,
+      ...jobCardContactFields(q.customer, contact),
       jobType: q.category === "Re-service request" ? "Re-service" : "",
       scopeOfWork: [`Query ${q.number}: ${q.subject}`, q.jobCard && `Follow-up to job card ${q.jobCard.number}`, q.description].filter(Boolean).join("\n"),
     },

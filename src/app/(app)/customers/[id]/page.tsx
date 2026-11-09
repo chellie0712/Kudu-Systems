@@ -15,12 +15,15 @@ import { CustomerAssetsTab } from "@/components/Assets";
 import { QueryTable } from "@/components/Queries";
 import { isOpen } from "@/lib/queries";
 import { PortalAccessTab } from "@/components/PortalAccess";
+import { CustomerContactsTab } from "@/components/Contacts";
+import { contactLabel } from "@/lib/contacts";
 import { currentCompany } from "@/lib/db";
 import { setEmailConsent } from "@/app/actions/email";
 import { CONSENT_HELP, CONSENT_LABELS } from "@/lib/email/audience";
 
 const tabs = [
   { key: "info", label: "Information" },
+  { key: "contacts", label: "Contacts" },
   { key: "quotations", label: "Quotations" },
   { key: "jobcards", label: "Job Cards" },
   { key: "invoices", label: "Invoices" },
@@ -50,6 +53,10 @@ export default async function CustomerPage({
       invoices: { orderBy: { issueDate: "desc" } },
       events: { orderBy: { start: "asc" } },
       branch: { select: { name: true } },
+      contacts: {
+        orderBy: [{ isPrimary: "desc" }, { name: "asc" }, { createdAt: "asc" }],
+        include: { _count: { select: { quotations: true, jobCards: true, invoices: true } } },
+      },
       queries: { orderBy: { createdAt: "desc" }, include: { customer: { select: { id: true, name: true } }, assignedTo: { select: { name: true, email: true } } } },
       portalUsers: { orderBy: { createdAt: "asc" } },
       assets: {
@@ -68,6 +75,7 @@ export default async function CustomerPage({
   const past = customer.events.filter((e) => e.end < now).reverse();
 
   const counts: Record<string, number> = {
+    contacts: customer.contacts.filter((c) => !c.archived).length,
     quotations: customer.quotations.length,
     jobcards: customer.jobCards.length,
     invoices: customer.invoices.length,
@@ -137,10 +145,10 @@ export default async function CustomerPage({
             <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
               {[
                 ["Type", customer.type === "BUSINESS" ? "Business" : "Individual / household"],
-                ["Contact person", customer.contactPerson],
+                ["Primary contact", customer.contactPerson],
                 ["Email", customer.email],
                 ["Phone", customer.phone],
-                ["Alternative phone", customer.altPhone],
+                ["Mobile / alternative phone", customer.altPhone],
                 ["VAT number", customer.vatNumber],
                 ["Registration no.", customer.regNumber],
                 ["Customer since", fmtDate(customer.createdAt)],
@@ -168,6 +176,27 @@ export default async function CustomerPage({
             )}
           </div>
           <div className="space-y-6">
+            <div className="card p-6">
+              <SectionTitle>Contacts</SectionTitle>
+              {customer.contacts.filter((c) => !c.archived).length === 0 ? (
+                <p className="text-sm text-charcoal-500">No contacts yet.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {customer.contacts.filter((c) => !c.archived).slice(0, 5).map((c) => (
+                    <li key={c.id}>
+                      <div className="font-medium">
+                        {contactLabel(c)}
+                        {c.isPrimary && <span className="ml-2 text-xs font-semibold text-kudu-600">Primary</span>}
+                      </div>
+                      <div className="text-charcoal-500">{[c.role, c.phone || c.mobile, c.email].filter(Boolean).join(" · ")}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link href={`/customers/${id}?tab=contacts`} className="mt-3 inline-block text-sm font-medium text-kudu-600">
+                {can(user.role, "customers.edit") ? "Manage contacts →" : "All contacts →"}
+              </Link>
+            </div>
             <div className="card p-6">
               <SectionTitle>Next appointments</SectionTitle>
               {upcoming.length === 0 ? (
@@ -226,6 +255,9 @@ export default async function CustomerPage({
         </div>
       )}
 
+      {tab === "contacts" && (
+        <CustomerContactsTab customerId={id} contacts={customer.contacts} canEdit={can(user.role, "customers.edit")} />
+      )}
       {tab === "quotations" && (
         <div className="card overflow-x-auto">
           <QuotationTable rows={customer.quotations} symbol={sym} />

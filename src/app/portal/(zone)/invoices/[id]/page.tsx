@@ -18,7 +18,7 @@ export default async function PortalInvoice({ params }: { params: Promise<{ id: 
   const [inv, settings] = await Promise.all([
     db.invoice.findFirst({
       where: { id, ...portalInvoices(user.customerId) },
-      include: { customer: { include: { branch: true } }, items: { orderBy: { sortOrder: "asc" } }, payments: { orderBy: { date: "asc" } } },
+      include: { customer: { include: { branch: true } }, contact: true, items: { orderBy: { sortOrder: "asc" } }, payments: { orderBy: { date: "asc" } } },
     }),
     getSettings(),
   ]);

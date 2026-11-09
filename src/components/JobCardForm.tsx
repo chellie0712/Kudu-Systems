@@ -1,16 +1,18 @@
-import type { Customer, JobCard, JobCardPhoto, JobStatus, Product, Settings } from "@prisma/client";
+import type { JobCard, JobCardPhoto, JobStatus, Product, Settings } from "@prisma/client";
 import { saveJobCard } from "@/app/actions/jobCards";
 import { toDateInput, toDateTimeInput } from "@/lib/format";
 import { JOB_TYPES, MAX_EXTRA_PHOTOS, lines, productLabel } from "@/lib/jobcard";
 import { JobCardSubmit, PhotoPicker, SignaturePad, WarrantyDates } from "./JobCardEditors";
 import { Field, NumberedSection } from "./ui";
+import type { CustomerWithContacts } from "@/lib/contacts";
+import { CustomerContactPicker } from "./CustomerContactPicker";
 import { TechnicianPicker, type Assignee } from "./TechnicianPicker";
 import { ChecklistEditor, type TemplateOption } from "./ChecklistEditor";
 import { CUSTOM_PREFIX, STAGES } from "@/lib/jobStatus";
 import type { ChecklistInput } from "@/lib/checklists";
 
 export type JobCardDefaults = Partial<
-  Pick<JobCard, "customerId" | "siteAddress" | "siteContact" | "contactNumber" | "scopeOfWork" | "quotationId">
+  Pick<JobCard, "customerId" | "contactId" | "siteAddress" | "siteContact" | "contactNumber" | "scopeOfWork" | "quotationId">
 >;
 
 export function JobCardForm({
@@ -26,7 +28,7 @@ export function JobCardForm({
   checklists = [],
 }: {
   jobCard?: JobCard & { photos: Pick<JobCardPhoto, "id" | "kind">[] };
-  customers: Pick<Customer, "id" | "name">[];
+  customers: CustomerWithContacts[];
   products: Product[];
   settings: Settings;
   defaults?: JobCardDefaults;
@@ -103,18 +105,16 @@ export function JobCardForm({
 
       <NumberedSection n={2} title="CLIENT DETAILS">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Client name *" className="sm:col-span-2">
-            <select name="customerId" required className="input" defaultValue={j?.customerId ?? defaults?.customerId ?? ""} disabled={lock}>
-              <option value="" disabled>Choose a customer…</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Contact number">
-            <input name="contactNumber" type="tel" className="input" defaultValue={j?.contactNumber ?? defaults?.contactNumber} placeholder="e.g. 082 123 4567" disabled={lock} />
-          </Field>
-          <Field label="Site contact person">
-            <input name="siteContact" className="input" defaultValue={j?.siteContact ?? defaults?.siteContact} disabled={lock} />
-          </Field>
+          <CustomerContactPicker
+            customers={customers}
+            customerId={j?.customerId ?? defaults?.customerId ?? ""}
+            contactId={j ? j.contactId : defaults?.contactId}
+            disabled={lock}
+            customerLabel="Client name *"
+            customerClassName="sm:col-span-2"
+            contactClassName="sm:col-span-2"
+            jobCard={{ siteContact: j?.siteContact ?? defaults?.siteContact ?? "", contactNumber: j?.contactNumber ?? defaults?.contactNumber ?? "" }}
+          />
           <Field label="Site address" className="sm:col-span-2">
             <textarea name="siteAddress" rows={2} className="input" defaultValue={j?.siteAddress ?? defaults?.siteAddress} placeholder="Physical address of the job" disabled={lock} />
           </Field>

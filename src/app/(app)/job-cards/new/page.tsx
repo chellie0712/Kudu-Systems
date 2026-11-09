@@ -1,8 +1,10 @@
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { customersForPicker } from "@/lib/contacts";
 import { assignees } from "@/lib/assignees";
 import { jobCardFormExtras } from "@/lib/jobCardForm";
+import { jobCardContactFields, primaryContact } from "@/lib/contacts";
 import { PageHeader } from "@/components/ui";
 import { JobCardForm } from "@/components/JobCardForm";
 
@@ -14,12 +16,13 @@ export default async function NewJobCardPage({ searchParams }: { searchParams: P
   const { customerId } = await searchParams;
   const settings = await getSettings();
   const [customers, products, people, extras] = await Promise.all([
-    db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    customersForPicker(db, { archived: false }),
     db.product.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     assignees(db),
     jobCardFormExtras(db),
   ]);
   const c = customerId ? await db.customer.findUnique({ where: { id: customerId } }) : null;
+  const contact = c ? await primaryContact(db, c.id) : null;
   return (
     <div>
       <PageHeader
@@ -37,8 +40,8 @@ export default async function NewJobCardPage({ searchParams }: { searchParams: P
             ? {
                 customerId: c.id,
                 siteAddress: c.siteAddress || c.billingAddress,
-                siteContact: c.contactPerson || (c.type === "INDIVIDUAL" ? c.name : ""),
-                contactNumber: c.phone,
+                contactId: contact?.id ?? null,
+                ...jobCardContactFields(c, contact),
               }
             : undefined
         }

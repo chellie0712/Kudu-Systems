@@ -171,10 +171,13 @@ model Customer {
   id              String          @id @default(cuid())
   type            CustomerType    @default(BUSINESS)
   name            String // display name: company name or person's full name
+  // Copy of the primary contact (CustomerContact.isPrimary), kept in step by src/lib/contacts.ts.
+  // Accounting sync, email campaigns and the portal read these.
   contactPerson   String          @default("")
   email           String          @default("")
   phone           String          @default("")
   altPhone        String          @default("")
+  contacts        CustomerContact[]
   vatNumber       String          @default("")
   regNumber       String          @default("")
   billingAddress  String          @default("")
@@ -205,6 +208,29 @@ model Customer {
   @@index([branchId])
 }
 
+/// A person at the customer. Exactly one is primary when the customer has any contacts;
+/// documents default to it. Archived contacts are hidden from pickers but still print on old documents.
+model CustomerContact {
+  id         String      @id @default(cuid())
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String      @default("")
+  role       String      @default("") // job title / role, e.g. "Facilities manager", "Accounts"
+  email      String      @default("")
+  phone      String      @default("")
+  mobile     String      @default("") // the customer's "Alternative phone" for the primary contact
+  notes      String      @default("")
+  isPrimary  Boolean     @default(false)
+  archived   Boolean     @default(false)
+  quotations Quotation[]
+  jobCards   JobCard[]
+  invoices   Invoice[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([customerId])
+}
+
 // ---------- Quotations ----------
 
 enum QuotationStatus {
@@ -220,6 +246,8 @@ model Quotation {
   number      String          @unique
   customerId  String
   customer    Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contactId   String? // the customer contact the document is for; prints instead of the primary contact
+  contact     CustomerContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
   status      QuotationStatus @default(DRAFT)
   title       String          @default("")
   issueDate   DateTime        @default(now())
@@ -269,6 +297,8 @@ model JobCard {
   number                String          @unique
   customerId            String
   customer              Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contactId             String? // the customer contact for this job; fills site contact and number
+  contact               CustomerContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
   quotationId           String?
   quotation             Quotation?      @relation(fields: [quotationId], references: [id], onDelete: SetNull)
   status                JobCardStatus   @default(SCHEDULED) // the stage; drives calendar, dashboard and filters
@@ -498,6 +528,8 @@ model Invoice {
   number      String        @unique
   customerId  String
   customer    Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  contactId   String? // the customer contact the document is for; prints instead of the primary contact
+  contact     CustomerContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
   quotationId String?
   quotation   Quotation?    @relation(fields: [quotationId], references: [id], onDelete: SetNull)
   jobCardId   String?

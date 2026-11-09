@@ -32,6 +32,7 @@ export default async function InvoicePage({
       where: { id },
       include: {
         customer: { include: { branch: true } },
+        contact: true,
         items: { orderBy: { sortOrder: "asc" } },
         payments: { orderBy: { date: "asc" } },
         quotation: { select: { id: true, number: true } },

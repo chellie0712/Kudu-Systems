@@ -1,6 +1,7 @@
 import { requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { customersForPicker } from "@/lib/contacts";
 import { PageHeader } from "@/components/ui";
 import { InvoiceForm } from "@/components/InvoiceForm";
 
@@ -11,7 +12,7 @@ export default async function NewInvoicePage({ searchParams }: { searchParams: P
   await requirePermission("invoices.edit");
   const { customerId } = await searchParams;
   const [customers, jobCards, settings] = await Promise.all([
-    db.customer.findMany({ where: { archived: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    customersForPicker(db, { archived: false }),
     db.jobCard.findMany({
       where: customerId ? { customerId } : {},
       select: { id: true, number: true, customerId: true },
