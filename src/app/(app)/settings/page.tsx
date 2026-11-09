@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { authDisabled, requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
@@ -99,6 +100,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </section>
         <section>
           <SectionTitle>Documents</SectionTitle>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-kudu-100 bg-kudu-50 p-3 text-sm">
+            <span>
+              Quotation layout: <b className="capitalize">{s.quoteLayout}</b> · Invoice layout: <b className="capitalize">{s.invoiceLayout}</b>. Choose from five layouts and set your colour, font and logo.
+            </span>
+            <Link href="/settings/layouts" className="btn-outline">Quote &amp; invoice layout</Link>
+          </div>
           <div className="grid gap-4 md:grid-cols-3">
             {text("quotePrefix", "Quotation prefix")}
             {text("jobCardPrefix", "Job card prefix")}

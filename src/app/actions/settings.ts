@@ -10,6 +10,7 @@ import { parseLogo } from "@/lib/logo";
 import { JobCardStatus } from "@prisma/client";
 import { STATUS_COLOURS } from "@/lib/jobStatus";
 import { toCents } from "@/lib/format";
+import { layoutId, parseDocStyle, type DocStyle } from "@/lib/docLayout";
 
 export async function saveSettings(fd: FormData) {
   const db = await tenantDb();
@@ -150,4 +151,23 @@ export async function deleteChecklistTemplate(fd: FormData) {
   // Job cards keep their own copy of the checklist.
   await db.checklistTemplate.delete({ where: { id: str(fd, "id") } });
   redirect("/settings?msg=Checklist+deleted#checklists");
+}
+
+/** Save the quotation and invoice layouts chosen under Settings → Quote & invoice layout. */
+export async function saveDocLayout(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("settings.manage");
+  await getSettings();
+  let style: DocStyle;
+  try {
+    style = parseDocStyle(JSON.parse(str(fd, "docStyle") || "{}"));
+  } catch {
+    redirect("/settings/layouts?err=The+layout+settings+could+not+be+read.+Please+try+again.");
+  }
+  await db.settings.update({
+    where: { id: 1 },
+    data: { quoteLayout: layoutId(str(fd, "quoteLayout")), invoiceLayout: layoutId(str(fd, "invoiceLayout")), docStyle: style },
+  });
+  revalidatePath("/", "layout");
+  redirect("/settings/layouts?msg=Layout+saved.+New+and+existing+quotations+and+invoices+now+print+this+way.");
 }
