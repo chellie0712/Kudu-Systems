@@ -22,6 +22,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Menu badge: everything waiting for my approval.
   const waiting = approvesAnything(user) ? await approvalCount(await tenantDb(), user, settings).catch(() => 0) : 0;
   if (waiting) badges["/approvals"] = { count: waiting, alert: true };
+  const newForms = can(user, "forms.view") ? await (await tenantDb()).formSubmission.count({ where: { reviewedAt: null } }).catch(() => 0) : 0;
+  if (newForms) badges["/forms"] = { count: newForms, alert: true };
   return (
     <div className="flex min-h-screen flex-col">
       <header className="no-print flex h-20 items-center justify-between border-b-2 border-kudu-600 bg-white px-4 md:px-6">

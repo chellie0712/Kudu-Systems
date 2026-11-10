@@ -1,3 +1,4 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { tenantDb } from "./db";
 import { DEFAULT_PRODUCTS } from "./jobcard";
 
@@ -22,8 +23,12 @@ type Kind = "quote" | "jobCard" | "invoice" | "query" | "task" | "po";
 
 /** Atomically reserve the next document number, e.g. QT-0007. */
 export async function nextNumber(kind: Kind): Promise<string> {
-  const db = await tenantDb();
   await getSettings();
+  return nextNumberIn(await tenantDb(), kind);
+}
+
+/** nextNumber for a given company database, e.g. from a public web form with no session. Settings must exist. */
+export async function nextNumberIn(db: PrismaClient | Prisma.TransactionClient, kind: Kind): Promise<string> {
   const field = kind === "quote" ? "nextQuoteNo" : kind === "jobCard" ? "nextJobCardNo" : kind === "query" ? "nextQueryNo" : kind === "task" ? "nextTaskNo" : kind === "po" ? "nextPoNo" : "nextInvoiceNo";
   const s = await db.settings.update({ where: { id: 1 }, data: { [field]: { increment: 1 } } });
   const prefix = kind === "quote" ? s.quotePrefix : kind === "jobCard" ? s.jobCardPrefix : kind === "query" ? s.queryPrefix : kind === "task" ? s.taskPrefix : kind === "po" ? s.poPrefix : s.invoicePrefix;
