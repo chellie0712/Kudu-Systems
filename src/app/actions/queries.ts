@@ -9,6 +9,7 @@ import { optDate, str } from "@/lib/form";
 import { fmtDate } from "@/lib/format";
 import { nextNumber } from "@/lib/settings";
 import { jobCardContactFields, primaryContact } from "@/lib/contacts";
+import { logStatusChange } from "@/lib/statusLog";
 import { PRIORITY_LABELS, QUERY_STATUS_LABELS } from "@/lib/queries";
 
 const go = (path: string, kind: "msg" | "err", text: string): never =>
@@ -162,6 +163,7 @@ export async function createJobCardFromQuery(fd: FormData) {
       scopeOfWork: [`Query ${q.number}: ${q.subject}`, q.jobCard && `Follow-up to job card ${q.jobCard.number}`, q.description].filter(Boolean).join("\n"),
     },
   });
+  await logStatusChange(db, jc.id, null, { status: jc.status, statusId: jc.statusId }, user.name);
   await db.query.update({
     where: { id: q.id },
     data: {

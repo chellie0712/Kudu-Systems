@@ -5,6 +5,7 @@ import { can, canAccessJobCard } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { fmtDateTime } from "@/lib/format";
+import { fmtDuration } from "@/lib/monitor";
 import { createInvoiceFromJobCard, deleteJobCard, setJobCardStatus } from "@/app/actions/jobCards";
 import { Flash, PageHeader } from "@/components/ui";
 import { JobStatusBadge } from "@/components/JobStatusBadge";
@@ -40,6 +41,7 @@ export default async function JobCardPage({
         timeEntries: { orderBy: { start: "asc" }, include: { invoice: { select: { id: true, number: true } } } },
         events: { select: { googleEventId: true } },
         queries: { select: { id: true, number: true, status: true }, orderBy: { createdAt: "asc" } },
+        statusChanges: { orderBy: { changedAt: "asc" } },
         assetChecks: { include: { asset: true }, orderBy: [{ asset: { code: "asc" } }, { asset: { name: "asc" } }] },
         stockMovements: {
           where: { kind: "USE" },
@@ -149,6 +151,8 @@ export default async function JobCardPage({
         hasDraftInvoice={j.invoices.some((i) => i.status === "DRAFT")}
       />
 
+      <StatusHistory changes={j.statusChanges} createdAt={j.createdAt} trackedSince={settings.statusTrackingSince} />
+
       <JobAssetsSection jobCardId={j.id} assets={customerAssets} checks={j.assetChecks} />
 
       <StockSection
@@ -168,5 +172,47 @@ export default async function JobCardPage({
         </form>
       )}
     </div>
+  );
+}
+
+/** Every status the job has had, who moved it and how long it stayed (on screen only). */
+function StatusHistory({
+  changes,
+  createdAt,
+  trackedSince,
+}: {
+  changes: { id: string; fromName: string; toName: string; toStatus: string; changedAt: Date; byName: string }[];
+  createdAt: Date;
+  trackedSince: Date;
+}) {
+  if (!changes.length) return null;
+  const now = Date.now();
+  return (
+    <section className="no-print card mx-auto mt-6 max-w-3xl p-6">
+      <h2 className="mb-3 border-b border-charcoal-100 pb-2 text-sm font-bold uppercase tracking-wide text-kudu-600">Status history</h2>
+      <ol className="space-y-2 text-sm">
+        {createdAt < trackedSince && <li className="text-xs text-charcoal-500">Changes before {fmtDateTime(trackedSince)} were not recorded.</li>}
+        {changes.map((c, i) => {
+          const until = changes[i + 1]?.changedAt.getTime() ?? now;
+          return (
+            <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2 border-l-2 border-kudu-200 pl-3">
+              <span>
+                <b>{c.toName}</b>
+                {c.fromName ? <span className="text-charcoal-500"> from {c.fromName}</span> : <span className="text-charcoal-500"> (created)</span>}
+                {c.byName && <span className="text-charcoal-500"> · {c.byName}</span>}
+              </span>
+              <span className="text-xs text-charcoal-500">
+                {fmtDateTime(c.changedAt)}
+                {i + 1 < changes.length
+                  ? ` · for ${fmtDuration(until - c.changedAt.getTime())}`
+                  : c.toStatus === "COMPLETED" || c.toStatus === "CANCELLED"
+                    ? ""
+                    : ` · ${fmtDuration(until - c.changedAt.getTime())} so far`}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }

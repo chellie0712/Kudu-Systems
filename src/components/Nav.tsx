@@ -12,6 +12,7 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
   { permission: "invoices.view", href: "/invoices", label: "Invoices", icon: "M9 14l2 2 4-4M4 4h16v16l-3-2-3 2-2-2-2 2-3-2-3 2z" },
   { permission: "queries.view", href: "/queries", label: "Queries", icon: "M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8a9.9 9.9 0 01-4-.8L3 20l1.3-3.9A7.5 7.5 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z" },
   { permission: "reports.view", href: "/reports", label: "Reports", icon: "M4 20h16M7 16V10m5 6V5m5 11v-4" },
+  { permission: "reports.view", href: "/monitor", label: "Process monitor", icon: "M3 12h4l3-8 4 16 3-8h4" },
   { permission: "reports.view", href: "/marketing", label: "Marketing", icon: "M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zm13-3a5 5 0 010 8m3-11a9 9 0 010 14" },
   { permission: "campaigns.edit", href: "/marketing/email", label: "Email campaigns", icon: "M3 7l9 6 9-6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" },
   { permission: "expenses.manage", href: "/expenses", label: "Expenses", icon: "M12 8c-2 0-3 .9-3 2s1 1.7 3 2 3 .9 3 2-1 2-3 2m0-8c1.1 0 2.1.4 2.6 1M12 8V6m0 10v2m0-2c-1.1 0-2.1-.4-2.6-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },

@@ -95,6 +95,24 @@ export async function deleteProduct(fd: FormData) {
 
 // ---------- Custom job statuses ----------
 
+/** A "stuck after" number of days from a form: 1 to 365, or null (use the company default). */
+function stuckDays(raw: string): number | null {
+  const n = Math.round(Number(raw));
+  return raw && Number.isFinite(n) ? Math.min(365, Math.max(1, n)) : null;
+}
+
+/** When the process monitor flags jobs, quotes and missing invoices (Settings → Job statuses). */
+export async function saveMonitorSettings(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("settings.manage");
+  const n = (k: string, d: number) => stuckDays(str(fd, k)) ?? d;
+  await db.settings.update({
+    where: { id: 1 },
+    data: { jobStuckDays: n("jobStuckDays", 3), quoteFollowUpDays: n("quoteFollowUpDays", 7), invoiceAfterDays: n("invoiceAfterDays", 2) },
+  });
+  redirect("/settings?msg=Process+monitor+limits+saved#statuses");
+}
+
 export async function saveJobStatus(fd: FormData) {
   const db = await tenantDb();
   await requirePermission("settings.manage");
@@ -106,6 +124,7 @@ export async function saveJobStatus(fd: FormData) {
     stage: (stage in JobCardStatus ? stage : "IN_PROGRESS") as JobCardStatus,
     colour: colour in STATUS_COLOURS ? colour : "slate",
     active: id ? fd.get("active") === "on" : true,
+    stuckAfterDays: stuckDays(str(fd, "stuckAfterDays")),
   };
   if (!data.name) redirect("/settings?err=Status+name+is+required#statuses");
   if (id) await db.jobStatus.update({ where: { id }, data });

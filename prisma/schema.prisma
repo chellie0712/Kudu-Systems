@@ -158,6 +158,11 @@ model Settings {
   labourRate         Int     @default(0) // cents per hour excl. VAT
   labourDescription  String  @default("Labour")
   labourRoundMinutes Int     @default(15) // billed time is rounded up to this many minutes
+  // Process monitor (src/lib/monitor.ts)
+  statusTrackingSince DateTime @default(now()) // job status history is complete from this moment on
+  jobStuckDays        Int      @default(3) // days in one status before an open job counts as stuck
+  quoteFollowUpDays   Int      @default(7) // days after a quotation is sent with no answer before it needs a follow-up
+  invoiceAfterDays    Int      @default(2) // days after a job is completed before a missing invoice is flagged
   // Invoice approval
   invoiceApproval          Boolean @default(false) // invoices must be approved before they can be sent
   invoiceApprovalThreshold Int     @default(0) // cents incl. VAT; only invoices of at least this total need approval
@@ -359,6 +364,7 @@ model JobCard {
   customerFeedback      String          @default("") // the client's comment at sign-off
   invoices              Invoice[]
   events                CalendarEvent[]
+  statusChanges         JobStatusChange[]
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
@@ -374,7 +380,27 @@ model JobStatus {
   stage     JobCardStatus @default(IN_PROGRESS)
   sortOrder Int           @default(0)
   active    Boolean       @default(true)
+  stuckAfterDays Int? // a job is "stuck" after this many days in this status; empty = the company default
   jobCards  JobCard[]
+}
+
+/// One status change of a job card, for the process monitor (src/lib/monitor.ts).
+/// Names are copied, so the history still reads correctly after a custom status is renamed or deleted.
+model JobStatusChange {
+  id           String         @id @default(cuid())
+  jobCardId    String
+  jobCard      JobCard        @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  fromStatus   JobCardStatus? // null when the job card was created
+  fromStatusId String?
+  fromName     String         @default("")
+  toStatus     JobCardStatus
+  toStatusId   String?
+  toName       String
+  changedAt    DateTime       @default(now())
+  byName       String         @default("") // who changed it, e.g. "Thandi" or "Client sign-off"
+
+  @@index([jobCardId, changedAt])
+  @@index([changedAt])
 }
 
 // Checklist / form templates set up in Settings and filled in on job cards.

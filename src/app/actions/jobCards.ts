@@ -10,6 +10,7 @@ import { optDate, parseJson, str } from "@/lib/form";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
 import { contactForDoc } from "@/lib/contacts";
+import { logStatusChange } from "@/lib/statusLog";
 import { syncJobCardEvent } from "@/lib/jobCardCalendar";
 import { applySignOff, signOffProblems } from "@/lib/signoff";
 import { deleteGoogleEvent } from "@/lib/google";
@@ -128,6 +129,7 @@ export async function saveJobCard(fd: FormData) {
     const signedAt = customerSignature ? (customerSignature !== before.customerSignature ? new Date() : before.signedAt) : null;
     if (canAssign && !assignment.customerId) throw new Error("Choose a customer");
     await db.jobCard.update({ where: { id }, data: { ...data, warrantyNo: data.warrantyNo || before.number, signedAt } });
+    await logStatusChange(db, id, before, chosen, user.name);
   } else {
     if (!assignment.customerId) throw new Error("Choose a customer");
     const number = await nextNumber("jobCard");
@@ -142,6 +144,7 @@ export async function saveJobCard(fd: FormData) {
       },
     });
     jcId = jc.id;
+    await logStatusChange(db, jc.id, null, chosen, user.name);
   }
 
   // Attach the photos kept in the form, drop the ones removed, and clear day-old orphans.
@@ -181,7 +184,7 @@ export async function setJobCardStatus(fd: FormData) {
   const db = await tenantDb();
   const user = await requirePermission("jobcards.edit");
   const id = str(fd, "id");
-  await jobCardFor(user, id);
+  const before = await jobCardFor(user, id);
   const chosen = await resolveStatus(str(fd, "status"));
   if (!chosen) redirect(`/job-cards/${id}?err=Unknown+status`);
   if (chosen.status === JobCardStatus.CANCELLED && !can(user, "jobcards.assign")) redirect(`/job-cards/${id}?err=Only+the+office+can+cancel+a+job`);
@@ -191,6 +194,7 @@ export async function setJobCardStatus(fd: FormData) {
     if (unfinished.length) redirect(`/job-cards/${id}?err=${encodeURIComponent(`Finish the ${unfinished.join(", ")} checklist before completing this job.`)}`);
   }
   await db.jobCard.update({ where: { id }, data: chosen });
+  await logStatusChange(db, id, before, chosen, user.name);
   await syncJobCardEvent(id);
   revalidatePath(`/job-cards/${id}`);
   redirect(`/job-cards/${id}?msg=Status+updated`);

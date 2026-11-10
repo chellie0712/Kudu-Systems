@@ -121,6 +121,19 @@ Every user has one role. The rules live in `src/lib/permissions.ts`; pages, serv
 
 **Forms & checklists** (Settings → Forms & checklists): a checklist is a list of items, one per line. It can be added to every job card, to job cards of one job type, or by hand on the job card. Technicians tick items and add notes on their own job cards; the checklist prints on the job card. "All items must be ticked to complete the job" stops a job being marked Completed (in the form and on the server) until every item is ticked. Job cards keep their own copy, so editing or deleting a template never changes past jobs. A "Safety checklist" example is added on first deploy.
 
+## Process monitor
+
+**Process monitor** (menu; needs Reports and See all job cards) shows where every job is in its process and what is waiting on someone:
+
+- **Job pipeline**: a column per status (Scheduled, In progress and your custom statuses), with each open job, how long it has been in that status, the average and the oldest.
+- **Stuck jobs**: open jobs that have spent longer than the limit in one status, are more than a day late to start, have no booking date for longer than the limit, or start within 2 days with nobody assigned.
+- **How long each step takes** (last 30 / 90 / 365 days): average, median and longest time jobs spent in each status before moving on, plus the average time from job created to completed.
+- **Waiting on someone**: completed jobs with no invoice, sent quotes with no answer, accepted quotes nobody has started, invoices waiting for approval, overdue invoices and overdue queries.
+
+Every job card status change is recorded with who made it and when (from the job card form, the status buttons, client sign-off, offline sync, and job cards created from a quotation or query). The job card shows this **Status history**. History starts when this feature is installed: for older jobs, the time in their current status is a lower bound, marked "≥".
+
+Limits are in **Settings → Job statuses**: days in one status before a job is stuck (default 3, and each custom status can have its own), days before a sent quote needs a follow-up (7), and days a completed job may wait for its invoice (2). The dashboard links to the monitor when jobs are stuck.
+
 ## Job time tracking and labour billing
 
 **Time on a job card** (the "Time on this job" box on the job card page): anyone who can open the job card can start and stop a timer (one running timer per person; starting another stops the first) or add time by hand (date, from, to, note). Technicians record only their own time and never see rates or amounts. Office and admins can record time for anyone, mark entries billable or not, stop someone's timer and delete unbilled entries.

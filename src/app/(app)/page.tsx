@@ -11,6 +11,7 @@ import { PageHeader, SectionTitle, StatusBadge } from "@/components/ui";
 import { stockOverview } from "@/lib/inventory";
 import { currentBranchId, getBranches } from "@/lib/branch";
 import { OPEN_STATUSES, overdueBefore } from "@/lib/queries";
+import { openJobs as monitorJobs } from "@/lib/monitor";
 
 export default async function Dashboard() {
   const db = await tenantDb();
@@ -66,6 +67,7 @@ export default async function Dashboard() {
         take: 5,
       })
     : [];
+  const stuckJobs = can(user, "reports.view") && can(user, "jobcards.viewAll") ? (await monitorJobs(db, settings, branchId, now)).filter((j) => j.stuck).length : 0;
   const lowStock = can(user, "inventory.view") ? (await stockOverview(db)).filter((i) => i.low) : [];
   const stats = [
     { label: "Active customers", value: String(customerCount), href: "/customers" },
@@ -89,6 +91,11 @@ export default async function Dashboard() {
       {awaitingApproval > 0 && (
         <Link href="/invoices?status=AWAITING_APPROVAL" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
           {awaitingApproval} invoice{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
+        </Link>
+      )}
+      {stuckJobs > 0 && (
+        <Link href="/monitor#stuck" className="mb-4 block rounded-md border border-kudu-200 bg-kudu-50 p-3 text-sm font-medium text-kudu-800 hover:bg-kudu-100">
+          {stuckJobs} job{stuckJobs === 1 ? " looks" : "s look"} stuck. See the process monitor →
         </Link>
       )}
       {acceptedOnline.length > 0 && (

@@ -2,6 +2,7 @@ import { JobCardStatus, type JobCard } from "@prisma/client";
 import type { TenantDb } from "@/lib/db";
 import { incompleteRequired, parseItems } from "@/lib/checklists";
 import { syncJobCardEvent } from "@/lib/jobCardCalendar";
+import { logStatusChange } from "@/lib/statusLog";
 
 export type SignOffInput = { name: string; signature: string; confirmed: boolean; rating?: number | null; feedback?: string };
 
@@ -23,6 +24,7 @@ export async function signOffProblems(db: TenantDb, jc: Pick<JobCard, "id" | "st
 export async function applySignOff(db: TenantDb, jc: Pick<JobCard, "id" | "jobDate" | "warrantyNo" | "number">, input: SignOffInput, signedAt = new Date()) {
   const now = new Date();
   const stars = Number(input.rating);
+  const before = await db.jobCard.findUnique({ where: { id: jc.id }, select: { status: true, statusId: true } });
   await db.jobCard.update({
     where: { id: jc.id },
     data: {
@@ -38,6 +40,7 @@ export async function applySignOff(db: TenantDb, jc: Pick<JobCard, "id" | "jobDa
       warrantyNo: jc.warrantyNo || jc.number,
     },
   });
+  await logStatusChange(db, jc.id, before, { status: JobCardStatus.COMPLETED, statusId: null }, `Client sign-off (${input.name.trim()})`);
   // The job is finished, so nobody is still working on it.
   await db.timeEntry.updateMany({ where: { jobCardId: jc.id, end: null }, data: { end: now } });
   await syncJobCardEvent(jc.id);

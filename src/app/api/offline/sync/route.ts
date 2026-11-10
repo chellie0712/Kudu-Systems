@@ -1,3 +1,4 @@
+import { logStatusChange } from "@/lib/statusLog";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -65,6 +66,10 @@ export async function POST(req: Request) {
       },
     }),
   ]);
+
+  if (jc.status === "SCHEDULED") {
+    await logStatusChange(db, jc.id, jc, { status: "IN_PROGRESS", statusId: null }, `${access.user.name} (offline)`);
+  }
 
   let result: SyncResult = { ok: true, completed: false, message: `${jc.number} saved.` };
   if (d.signOff) {
