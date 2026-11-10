@@ -10,6 +10,7 @@ import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
 import { contactForDoc, jobCardContactFields } from "@/lib/contacts";
+import { logStatusChange } from "@/lib/statusLog";
 
 export async function saveQuotation(fd: FormData) {
   const db = await tenantDb();
@@ -79,7 +80,7 @@ async function markAccepted(id: string) {
 /** Create a job card pre-filled from the quotation, then open it for editing. */
 export async function createJobCardFromQuotation(fd: FormData) {
   const db = await tenantDb();
-  await requirePermission("jobcards.create");
+  const user = await requirePermission("jobcards.create");
   const q = await db.quotation.findUniqueOrThrow({
     where: { id: str(fd, "id") },
     include: { customer: true, contact: true, items: { orderBy: { sortOrder: "asc" } } },
@@ -101,6 +102,7 @@ export async function createJobCardFromQuotation(fd: FormData) {
       scopeOfWork: scope,
     },
   });
+  await logStatusChange(db, jc.id, null, { status: jc.status, statusId: jc.statusId }, user.name);
   await markAccepted(q.id);
   revalidatePath("/job-cards");
   redirect(`/job-cards/${jc.id}/edit?msg=Job+card+created+from+${q.number}.+Set+the+date+and+technician.`);

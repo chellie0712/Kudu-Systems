@@ -10,6 +10,7 @@ import {
   disconnectGoogleCalendar,
   saveChecklistTemplate,
   saveJobStatus,
+  saveMonitorSettings,
   saveProduct,
   saveSettings,
   useMyGoogleCalendar,
@@ -321,6 +322,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 <input name="name" className="input min-w-48 flex-1" defaultValue={st.name} aria-label="Status name" />
                 {stageSelect(st.stage)}
                 {colourSelect(st.colour)}
+                <input
+                  name="stuckAfterDays"
+                  type="number"
+                  min={1}
+                  max={365}
+                  className="input w-24 py-1.5"
+                  defaultValue={st.stuckAfterDays ?? ""}
+                  placeholder={`${s.jobStuckDays} d`}
+                  aria-label={`Stuck after (days) for ${st.name}`}
+                  title="Days in this status before a job counts as stuck. Empty: the company default."
+                />
                 <label className="flex items-center gap-1 text-xs"><input type="checkbox" name="active" defaultChecked={st.active} className="accent-kudu-600" /> Show</label>
                 <span className="text-xs text-charcoal-500">{st._count.jobCards} job{st._count.jobCards === 1 ? "" : "s"}</span>
                 <button className="btn-outline py-1.5">Save</button>
@@ -336,7 +348,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <input name="name" className="input min-w-48 flex-1" placeholder="New status, e.g. Awaiting parts" required />
           {stageSelect()}
           {colourSelect()}
+          <input name="stuckAfterDays" type="number" min={1} max={365} className="input w-24 py-1.5" placeholder={`${s.jobStuckDays} d`} aria-label="Stuck after (days)" title="Days in this status before a job counts as stuck. Empty: the company default." />
           <button className="btn-primary py-1.5">+ Add status</button>
+        </form>
+
+        <form action={saveMonitorSettings} className="mt-6 rounded-md bg-charcoal-50 p-4">
+          <div className="mb-2 text-sm font-semibold">Process monitor limits</div>
+          <p className="mb-3 text-xs text-charcoal-500">
+            When the <Link href="/monitor" className="text-kudu-600">Process monitor</Link> flags something. The number box next to a custom status above overrides the first one for that status.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Job stuck after (days in one status)"><input name="jobStuckDays" type="number" min={1} max={365} className="input w-28" defaultValue={s.jobStuckDays} /></Field>
+            <Field label="Follow up a sent quote after (days)"><input name="quoteFollowUpDays" type="number" min={1} max={365} className="input w-28" defaultValue={s.quoteFollowUpDays} /></Field>
+            <Field label="Invoice a completed job within (days)"><input name="invoiceAfterDays" type="number" min={1} max={365} className="input w-28" defaultValue={s.invoiceAfterDays} /></Field>
+            <button className="btn-outline">Save limits</button>
+          </div>
         </form>
       </div>
 
