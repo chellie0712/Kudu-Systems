@@ -15,6 +15,8 @@ import { Flash, PageHeader, StatusBadge } from "@/components/ui";
 import { QuotationSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 
+import { LinkedTasks } from "@/components/Tasks";
+
 export default async function QuotationPage({
   params,
   searchParams,
@@ -95,6 +97,8 @@ export default async function QuotationPage({
       </div>
 
       <QuotationSheet q={q} settings={settings} />
+
+      <LinkedTasks db={db} user={user} link={{ quotationId: q.id }} returnTo={`/quotations/${q.id}`} className="mx-auto mt-6 max-w-4xl" />
 
       {can(user, "quotations.delete") && (
         <form action={deleteQuotation} className="no-print mx-auto mt-6 max-w-4xl text-right">

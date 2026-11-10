@@ -59,6 +59,11 @@ const RULES = {
   "queries.view": STAFF, // customer queries, complaints and requests
   "queries.edit": STAFF, // log, update, assign, resolve
   "queries.delete": ADMIN,
+  "tasks.view": ALL, // tasks assigned to or created by you
+  "tasks.viewAll": STAFF, // everyone's tasks, the team views, escalations
+  "tasks.edit": ALL, // create tasks, update and complete the ones you can see
+  "tasks.assign": STAFF, // give tasks to other people
+  "tasks.delete": ADMIN,
   "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
   "profit.view": ADMIN, // profit & loss (includes wages and other expenses)
   "expenses.manage": ADMIN, // record business expenses for the profit & loss
@@ -126,6 +131,11 @@ export const PERMISSION_INFO: Record<Permission, { group: string; label: string;
   "queries.view": { group: "Customers", label: "See customer queries and complaints" },
   "queries.edit": { group: "Customers", label: "Log, assign and resolve queries" },
   "queries.delete": { group: "Customers", label: "Delete queries" },
+  "tasks.view": { group: "Tasks", label: "See their own tasks", help: "Tasks assigned to them or that they created." },
+  "tasks.viewAll": { group: "Tasks", label: "See everyone's tasks and escalations" },
+  "tasks.edit": { group: "Tasks", label: "Create tasks and update the ones they can see" },
+  "tasks.assign": { group: "Tasks", label: "Give tasks to other people" },
+  "tasks.delete": { group: "Tasks", label: "Delete tasks" },
   "quotations.view": { group: "Quotations", label: "See quotations" },
   "quotations.edit": { group: "Quotations", label: "Create and edit quotations" },
   "quotations.delete": { group: "Quotations", label: "Delete quotations" },
@@ -175,6 +185,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Record stock used on jobs", permission: "stock.use", note: { TECHNICIAN: "Own jobs, own van" } },
   { label: "Customer assets", permission: "assets.edit", note: { TECHNICIAN: "Check and add on own jobs" } },
   { label: "Customer queries and complaints", permission: "queries.edit" },
+  { label: "Tasks: everyone's, and assign to others", permission: "tasks.assign", note: { TECHNICIAN: "Own tasks" } },
   { label: "Reports and cashflow", permission: "reports.view" },
   { label: "Email campaigns to customers (from own mailbox)", permission: "campaigns.send" },
   { label: "Invoices and payments", permission: "invoices.edit" },

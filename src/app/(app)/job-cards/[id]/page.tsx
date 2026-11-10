@@ -17,6 +17,8 @@ import { isOpen } from "@/lib/queries";
 import { JobCardSheet } from "@/components/JobCardSheet";
 import { JobAssetsSection } from "@/components/Assets";
 
+import { LinkedTasks } from "@/components/Tasks";
+
 export default async function JobCardPage({
   params,
   searchParams,
@@ -150,6 +152,8 @@ export default async function JobCardPage({
         settings={settings}
         hasDraftInvoice={j.invoices.some((i) => i.status === "DRAFT")}
       />
+
+      <LinkedTasks db={db} user={user} link={{ jobCardId: j.id }} returnTo={`/job-cards/${j.id}`} className="mx-auto mt-6 max-w-3xl" />
 
       <StatusHistory changes={j.statusChanges} createdAt={j.createdAt} trackedSince={settings.statusTrackingSince} />
 

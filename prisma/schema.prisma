@@ -37,6 +37,9 @@ model User {
   timeEntries   TimeEntry[]
   vans          StockLocation[] // vans this user drives
   queries       Query[] // queries assigned to this user
+  tasks         Task[]    @relation("TaskAssignee") // tasks assigned to this user
+  escalatedTasks Task[]   @relation("TaskEscalation") // overdue tasks escalated to this user
+  assignmentRules AssignmentRule[]
   branchId      String? // home branch: the branch shown when they sign in
   branch        Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
   mailAccount   MailAccount? // the mailbox their email campaigns are sent from
@@ -158,6 +161,12 @@ model Settings {
   labourRate         Int     @default(0) // cents per hour excl. VAT
   labourDescription  String  @default("Labour")
   labourRoundMinutes Int     @default(15) // billed time is rounded up to this many minutes
+  // Tasks (src/lib/tasks.ts)
+  taskPrefix          String  @default("TSK-")
+  nextTaskNo          Int     @default(1)
+  taskEscalateHours   Int     @default(24) // hours past its deadline before an open task is escalated; 0 = never
+  taskEscalateToId    String? // who overdue tasks are escalated to; empty = shown to everyone who can see all tasks
+  taskEscalateReassign Boolean @default(false) // also hand the task over to that person
   // Process monitor (src/lib/monitor.ts)
   statusTrackingSince DateTime @default(now()) // job status history is complete from this moment on
   jobStuckDays        Int      @default(3) // days in one status before an open job counts as stuck
@@ -212,6 +221,7 @@ model Customer {
   events          CalendarEvent[]
   assets          CustomerAsset[]
   queries         Query[]
+  tasks           Task[]
   portalUsers     PortalUser[] // the customer's logins to the customer portal
   leadSource      String          @default("") // how they found us, e.g. "Google Ads" (see src/lib/marketing.ts)
   leadCampaign    String          @default("") // the ad campaign, matched to AdSpend.campaign
@@ -283,6 +293,7 @@ model Quotation {
   items       QuotationItem[]
   jobCards    JobCard[]
   invoices    Invoice[]
+  tasks       Task[]
   // Answer given by the customer in the customer portal
   response     String          @default("") // "ACCEPTED" or "DECLINED"
   respondedAt  DateTime?
@@ -365,6 +376,7 @@ model JobCard {
   invoices              Invoice[]
   events                CalendarEvent[]
   statusChanges         JobStatusChange[]
+  tasks                 Task[]
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
@@ -597,6 +609,7 @@ model Invoice {
   payments    Payment[]
   timeEntries TimeEntry[] // labour billed on this invoice
   stockMovements      StockMovement[] // materials billed on this invoice
+  tasks               Task[]
   acctLink        String    @default("") // "provider:organisation" the acctId belongs to
   acctId          String? // the invoice's ID in the accounting package, once sent (or exported)
   acctNumber      String    @default("")
@@ -750,6 +763,7 @@ model Query {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   notes        QueryNote[]
+  tasks        Task[]
 
   @@index([status])
   @@index([customerId])
@@ -921,4 +935,95 @@ model EmailRecipient {
   @@unique([campaignId, email])
   @@index([campaignId, status])
   @@index([sentAt])
+}
+
+// ---------- Tasks ----------
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// A piece of work for one person, with a deadline. Linked to whatever it is about.
+/// Overdue tasks are escalated (src/lib/tasks.ts); new unassigned tasks follow the assignment rules.
+model Task {
+  id            String       @id @default(cuid())
+  number        String       @unique
+  title         String
+  description   String       @default("")
+  category      String       @default("") // e.g. "Follow-up call"; assignment rules match on it
+  status        TaskStatus   @default(OPEN)
+  priority      TaskPriority @default(NORMAL)
+  dueAt         DateTime?
+  assignedToId  String?
+  assignedTo    User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedBy    String       @default("") // a person's name, or "Rule: <name>"
+  customerId    String?
+  customer      Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  jobCardId     String?
+  jobCard       JobCard?     @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  quotationId   String?
+  quotation     Quotation?   @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  invoiceId     String?
+  invoice       Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  queryId       String?
+  query         Query?       @relation(fields: [queryId], references: [id], onDelete: SetNull)
+  escalatedAt   DateTime?
+  escalatedToId String?
+  escalatedTo   User?        @relation("TaskEscalation", fields: [escalatedToId], references: [id], onDelete: SetNull)
+  completedAt   DateTime?
+  createdById   String?
+  createdBy     String       @default("")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  notes         TaskNote[]
+
+  @@index([status, dueAt])
+  @@index([assignedToId, status])
+  @@index([customerId])
+}
+
+model TaskNote {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  text      String
+  system    Boolean  @default(false) // automatic entries: assignment, status, escalation
+  userName  String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+enum AssignMethod {
+  USER // always this person
+  ROUND_ROBIN // people in the pool take turns
+  LEAST_BUSY // whoever in the pool has the fewest open tasks
+}
+
+/// Who gets a new task nobody was chosen for. The first active rule that matches wins.
+model AssignmentRule {
+  id             String        @id @default(cuid())
+  name           String
+  active         Boolean       @default(true)
+  sortOrder      Int           @default(0)
+  category       String        @default("") // only tasks of this type; empty = any
+  priority       TaskPriority? // only tasks of this priority; empty = any
+  method         AssignMethod  @default(ROUND_ROBIN)
+  userId         String? // for USER
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  pool           String        @default("OFFICE") // for the others: a role ("OFFICE") or a custom role ("custom:<id>")
+  sameBranch     Boolean       @default(false) // only people whose home branch is the customer's branch
+  lastAssignedId String? // round robin: who got the last one
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }

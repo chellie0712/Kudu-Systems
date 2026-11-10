@@ -13,6 +13,8 @@ import { PriorityText, QueryFields, QueryStatusBadge } from "@/components/Querie
 import { JobStatusBadge } from "@/components/JobStatusBadge";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
+import { LinkedTasks } from "@/components/Tasks";
+
 export default async function QueryPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ msg?: string; err?: string }> }) {
   const user = await requirePermission("queries.view");
   const db = await tenantDb();
@@ -122,6 +124,8 @@ export default async function QueryPage({ params, searchParams }: { params: Prom
           </form>
         </div>
       )}
+
+      <LinkedTasks db={db} user={user} link={{ queryId: q.id }} returnTo={`/queries/${q.id}`} className="mb-6" />
 
       <div className="card mb-6 p-6">
         <SectionTitle>Timeline</SectionTitle>
