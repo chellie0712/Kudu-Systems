@@ -65,6 +65,10 @@ const RULES = {
   "tasks.edit": ALL, // create tasks, update and complete the ones you can see
   "tasks.assign": STAFF, // give tasks to other people
   "tasks.delete": ADMIN,
+  "forms.fill": ALL, // fill in the company's internal forms
+  "forms.view": STAFF, // see everyone's form submissions, including web forms
+  "forms.manage": ADMIN, // build forms and publish web forms
+  "forms.delete": ADMIN, // delete forms and submissions
   "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
   "profit.view": ADMIN, // profit & loss (includes wages and other expenses)
   "expenses.manage": ADMIN, // record business expenses for the profit & loss
@@ -146,6 +150,10 @@ export const PERMISSION_INFO: Record<Permission, { group: string; label: string;
   "tasks.edit": { group: "Tasks", label: "Create tasks and update the ones they can see" },
   "tasks.assign": { group: "Tasks", label: "Give tasks to other people" },
   "tasks.delete": { group: "Tasks", label: "Delete tasks" },
+  "forms.fill": { group: "Forms", label: "Fill in forms" },
+  "forms.view": { group: "Forms", label: "See all form submissions, including web forms" },
+  "forms.manage": { group: "Forms", label: "Build forms and publish web forms" },
+  "forms.delete": { group: "Forms", label: "Delete forms and submissions" },
   "quotations.view": { group: "Quotations", label: "See quotations" },
   "quotations.edit": { group: "Quotations", label: "Create and edit quotations" },
   "quotations.delete": { group: "Quotations", label: "Delete quotations" },
@@ -206,6 +214,9 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Customer assets", permission: "assets.edit", note: { TECHNICIAN: "Check and add on own jobs" } },
   { label: "Customer queries and complaints", permission: "queries.edit" },
   { label: "Tasks: everyone's, and assign to others", permission: "tasks.assign", note: { TECHNICIAN: "Own tasks" } },
+  { label: "Forms: fill in", permission: "forms.fill" },
+  { label: "Forms: see all submissions and web forms", permission: "forms.view", note: { TECHNICIAN: "Own only" } },
+  { label: "Forms: build and publish", permission: "forms.manage" },
   { label: "Reports and cashflow", permission: "reports.view" },
   { label: "Email campaigns to customers (from own mailbox)", permission: "campaigns.send" },
   { label: "Invoices and payments", permission: "invoices.edit" },

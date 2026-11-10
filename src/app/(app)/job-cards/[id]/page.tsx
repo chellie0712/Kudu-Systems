@@ -19,6 +19,7 @@ import { JobCardSheet } from "@/components/JobCardSheet";
 import { JobAssetsSection } from "@/components/Assets";
 
 import { LinkedTasks } from "@/components/Tasks";
+import { LinkedForms } from "@/components/Forms";
 
 export default async function JobCardPage({
   params,
@@ -166,6 +167,7 @@ export default async function JobCardPage({
       />
 
       <LinkedTasks db={db} user={user} link={{ jobCardId: j.id }} returnTo={`/job-cards/${j.id}`} className="mx-auto mt-6 max-w-3xl" />
+      <LinkedForms db={db} user={user} link={{ jobCardId: j.id }} className="mx-auto mt-6 max-w-3xl" />
 
       <StatusHistory changes={j.statusChanges} createdAt={j.createdAt} trackedSince={settings.statusTrackingSince} />
 

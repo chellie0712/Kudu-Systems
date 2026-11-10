@@ -233,6 +233,7 @@ model Customer {
   assets          CustomerAsset[]
   queries         Query[]
   tasks           Task[]
+  formSubmissions FormSubmission[]
   portalUsers     PortalUser[] // the customer's logins to the customer portal
   leadSource      String          @default("") // how they found us, e.g. "Google Ads" (see src/lib/marketing.ts)
   leadCampaign    String          @default("") // the ad campaign, matched to AdSpend.campaign
@@ -388,6 +389,7 @@ model JobCard {
   stockMovements        StockMovement[]
   assetChecks           AssetCheck[]
   queries               Query[] // queries this job card was raised for (e.g. a re-service)
+  formSubmissions       FormSubmission[]
   customerRating        Int? // 1-5 stars given by the client at sign-off
   customerFeedback      String          @default("") // the client's comment at sign-off
   invoices              Invoice[]
@@ -929,6 +931,56 @@ model PurchaseOrderLine {
   unitCost    Int // cents excl. VAT
   received    Float         @default(0)
   sortOrder   Int           @default(0)
+}
+
+// ---------- Forms (src/lib/forms.ts) ----------
+
+/// A form built in Settings → Forms. `fields` is a list of FormField (see src/lib/forms.ts).
+model Form {
+  id             String           @id @default(cuid())
+  name           String
+  slug           String           @unique // the public web form's address: /f/<company>/<slug>
+  description    String           @default("") // shown at the top of the form
+  fields         Json             @default("[]")
+  active         Boolean          @default(true)
+  internal       Boolean          @default(true) // staff can fill it in inside Kudu
+  public         Boolean          @default(false) // published as a web form anyone can fill in
+  linkTo         String           @default("") // internal forms: "", "customer" or "jobCard" (filled in for one)
+  thankYou       String           @default("Thank you. We have received your details and will be in touch soon.")
+  // What a web form submission does
+  createCustomer Boolean          @default(true) // find the customer by email or phone, or add them as a new lead
+  createQuery    Boolean          @default(false) // log a customer query with the answers
+  createTask     Boolean          @default(true) // add a follow-up task, handed out by the assignment rules
+  taskCategory   String           @default("Follow-up call")
+  createdBy      String           @default("")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  submissions    FormSubmission[]
+}
+
+model FormSubmission {
+  id           String    @id @default(cuid())
+  formId       String
+  form         Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  data         Json // field id → answer (string, string[] or signature data URL)
+  summary      String    @default("") // a short line for lists, from the first answers
+  source       String    @default("staff") // "staff" or "web"
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  jobCardId    String?
+  jobCard      JobCard?  @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  queryId      String? // the query a web submission logged
+  taskId       String? // the follow-up task a web submission added
+  submittedById String? // the user who filled it in (no relation, so removing a user keeps history)
+  submittedBy  String    @default("") // the user's name, or "Website"
+  ipHash       String    @default("") // web submissions: hashed address, for spam limits
+  reviewedAt   DateTime?
+  reviewedBy   String    @default("")
+  createdAt    DateTime  @default(now())
+
+  @@index([formId, createdAt])
+  @@index([customerId])
+  @@index([jobCardId])
 }
 
 // ---------- Leave ----------

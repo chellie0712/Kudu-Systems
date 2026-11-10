@@ -213,6 +213,19 @@ Settings → **Approvals** (0 as an amount means "all"):
 
 **Escalation** (Settings → Tasks): an open task more than *N* hours past its deadline (default 24, 0 = off) is escalated once: it gets an "Escalated" label and a note, and shows on the dashboard and under Escalated for the chosen person (or, if none is chosen, for everyone who sees all tasks). Optionally the task is also handed to that person. Kudu checks when Tasks or the dashboard is opened and every day at 05:00 UTC (`/api/cron/tasks`, protected by `CRON_SECRET`). Escalation is in-app only, there is no email or SMS. Setting a new deadline in the future clears the escalation.
 
+## Forms and web forms
+
+**Forms** lets an admin build their own forms (permission `forms.manage`) without code. Drag fields into order and choose from headings, short and long text, email, phone, number, date, drop-downs, radio buttons, tick boxes, yes/no and signatures. Four starting templates are included: quote request, contact us, site inspection and blank.
+
+Each form can be used in two places:
+
+- **Inside Kudu.** Staff fill it in on its own, from a customer's Forms tab, or from a job card (for example a site inspection a technician completes on site). Anyone with `forms.fill` can fill in forms. Only people with `forms.view` see everyone's answers; others see what they filled in themselves.
+- **On your website.** Switch on "Web form" to get a public link (`/f/<company code>/<form>`) and an embed code for your site. A web submission finds the customer by email or phone, or creates a new one with lead source "Website". It can also open a query and create a follow-up task due in 24 hours, which is auto-assigned using the task rules.
+
+Spam protection on web forms uses a hidden honeypot field, a signed time stamp (submissions faster than 3 seconds or older than a day are ignored) and a limit of 10 submissions an hour per visitor. Visitor IP addresses are stored only as a one-way hash.
+
+New submissions show as a badge on Forms in the menu until someone marks them as dealt with. Each form's submissions can be searched and exported to CSV.
+
 ## Reports and cashflow
 
 **Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.

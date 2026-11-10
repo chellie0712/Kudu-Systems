@@ -18,6 +18,7 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
     label: "Approvals",
     icon: "M9 12l2 2 4-4m5.6-4.2A12 12 0 0112 3a12 12 0 01-8.6 2.8A12 12 0 003 9c0 5.6 3.8 10.3 9 11.6 5.2-1.3 9-6 9-11.6 0-1.1-.1-2.1-.4-3.2z",
   },
+  { permission: "forms.fill", href: "/forms", label: "Forms", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4" },
   { permission: "reports.view", href: "/reports", label: "Reports", icon: "M4 20h16M7 16V10m5 6V5m5 11v-4" },
   { permission: "reports.view", href: "/monitor", label: "Process monitor", icon: "M3 12h4l3-8 4 16 3-8h4" },
   { permission: "reports.view", href: "/marketing", label: "Marketing", icon: "M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zm13-3a5 5 0 010 8m3-11a9 9 0 010 14" },
