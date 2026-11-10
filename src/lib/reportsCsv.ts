@@ -8,7 +8,7 @@ import { csv, periodFrom, type Period } from "@/lib/reports";
 export async function csvContext(req: Request): Promise<NextResponse | { period: Period; ofBranch: { customer?: { branchId: string } } }> {
   const user = await getUser();
   if (!user) return new NextResponse("Not signed in", { status: 401 });
-  if (!can(user.role, "reports.view")) return new NextResponse("No access", { status: 403 });
+  if (!can(user, "reports.view")) return new NextResponse("No access", { status: 403 });
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const branchId = await currentBranchId();
   return { period: periodFrom(sp), ofBranch: branchId ? { customer: { branchId } } : {} };

@@ -9,7 +9,7 @@ export const maxDuration = 60;
 /** The campaign page calls this again and again while a campaign is sending. */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser();
-  if (!user || !can(user.role, "campaigns.send")) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
+  if (!user || !can(user, "campaigns.send")) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
   const { id } = await params;
   const { company, db } = await currentCompany();
   const r = await sendCampaignBatch(db, company, id, 45_000);

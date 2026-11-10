@@ -1,5 +1,5 @@
 import { requireUser } from "@/auth";
-import { can, ROLE_LABELS } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { fmtDateTime } from "@/lib/format";
 import { PROVIDER_DAILY_CAP, PROVIDER_LABELS, providerConfigured } from "@/lib/email/providers";
@@ -14,7 +14,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const user = await requireUser();
   const { msg, err } = await searchParams;
   const db = await tenantDb();
-  const mayConnect = can(user.role, "email.connect");
+  const mayConnect = can(user, "email.connect");
   const acct = mayConnect ? await db.mailAccount.findUnique({ where: { userId: user.id } }) : null;
   const today = acct ? await sentToday(db, user.id) : 0;
   const gmail = providerConfigured("GOOGLE");
@@ -32,7 +32,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <dl className="grid gap-4 text-sm sm:grid-cols-3">
           <div><dt className="label">Name</dt><dd>{user.name || "—"}</dd></div>
           <div><dt className="label">Sign-in email</dt><dd>{user.email}</dd></div>
-          <div><dt className="label">Role</dt><dd>{ROLE_LABELS[user.role]}</dd></div>
+          <div><dt className="label">Role</dt><dd>{user.roleName}</dd></div>
         </dl>
         <p className="mt-3 text-xs text-charcoal-500">An admin can change your name or email in Settings → Users &amp; roles.</p>
       </div>

@@ -11,7 +11,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const back = (q: string) => NextResponse.redirect(new URL(`/account?${q}#mailbox`, req.url));
   const user = await getUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
-  if (!can(user.role, "email.connect")) return NextResponse.redirect(new URL("/no-access?need=email.connect", req.url));
+  if (!can(user, "email.connect")) return NextResponse.redirect(new URL("/no-access?need=email.connect", req.url));
   if (provider !== "google" && provider !== "microsoft") return back(`err=${encodeURIComponent("Unknown mail provider.")}`);
   if (!providerConfigured(provider === "google" ? "GOOGLE" : "MICROSOFT")) {
     return back(`err=${encodeURIComponent(`${provider === "google" ? "Gmail" : "Microsoft 365"} connections are not set up on this server yet. Use "Other mailbox (SMTP)" for now.`)}`);

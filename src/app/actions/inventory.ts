@@ -139,7 +139,7 @@ export async function useStockOnJob(fd: FormData) {
   const locationId = str(fd, "locationId");
   const quantity = qtyFrom(fd);
   if (!itemId || !locationId || quantity <= 0) go(path, "err", "Choose a product, where it came from, and a quantity above 0.", "#stock");
-  if (!can(user.role, "inventory.manage")) {
+  if (!can(user, "inventory.manage")) {
     // Technicians book stock out of their own van only.
     const van = await db.stockLocation.findFirst({ where: { id: locationId, type: "VAN", userId: user.id } });
     if (!van) go(path, "err", "You can only use stock from your own van.", "#stock");
@@ -159,7 +159,7 @@ export async function undoStockUse(fd: FormData) {
   if (!m || m.kind !== "USE" || !m.jobCard) redirect("/job-cards");
   const path = `/job-cards/${m.jobCard.id}`;
   if (!canAccessJobCard(user, m.jobCard)) redirect("/no-access?need=jobcards.viewAll");
-  if (!can(user.role, "inventory.manage") && m.userId !== user.id) go(path, "err", "You can only remove stock you recorded yourself.", "#stock");
+  if (!can(user, "inventory.manage") && m.userId !== user.id) go(path, "err", "You can only remove stock you recorded yourself.", "#stock");
   if (m.invoiceId) go(path, "err", "This stock is already on an invoice.", "#stock");
   await db.$transaction(async (tx) => {
     if (m.fromLocationId) {

@@ -96,7 +96,7 @@ export default async function QuotationPage({
 
       <QuotationSheet q={q} settings={settings} />
 
-      {can(user.role, "quotations.delete") && (
+      {can(user, "quotations.delete") && (
         <form action={deleteQuotation} className="no-print mx-auto mt-6 max-w-4xl text-right">
           <input type="hidden" name="id" value={q.id} />
           <ConfirmButton message={`Delete quotation ${q.number}? Linked job cards and invoices are kept.`}>Delete quotation</ConfirmButton>

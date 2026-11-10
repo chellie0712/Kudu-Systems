@@ -37,8 +37,8 @@ export default async function CampaignPage({
   const { company, db } = await currentCompany();
   const c = await db.emailCampaign.findUnique({ where: { id }, include: { sender: { select: { name: true, email: true, mailAccount: { select: { provider: true } } } } } });
   if (!c) notFound();
-  const mayEdit = can(user.role, "campaigns.edit");
-  const maySend = can(user.role, "campaigns.send");
+  const mayEdit = can(user, "campaigns.edit");
+  const maySend = can(user, "campaigns.send");
   const mine = await db.mailAccount.findUnique({ where: { userId: user.id }, select: { email: true, provider: true, dailyLimit: true } });
   const isDraft = c.status === "DRAFT";
 
@@ -77,7 +77,7 @@ export default async function CampaignPage({
             {mayEdit && !isDraft && (
               <form action={duplicateCampaign}><input type="hidden" name="id" value={id} /><button className="btn-outline">Duplicate</button></form>
             )}
-            {can(user.role, "campaigns.delete") && c.status !== "SENDING" && (
+            {can(user, "campaigns.delete") && c.status !== "SENDING" && (
               <form action={deleteCampaign}>
                 <input type="hidden" name="id" value={id} />
                 <ConfirmButton message={`Delete "${c.name}" and its send history? This cannot be undone.`} className="btn-danger">Delete</ConfirmButton>

@@ -11,7 +11,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const { provider } = await params;
   const back = (q: string) => NextResponse.redirect(new URL(`/settings?${q}#accounting`, req.url));
   const user = await getUser();
-  if (!user || !can(user.role, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
+  if (!user || !can(user, "settings.manage")) return NextResponse.redirect(new URL("/no-access?need=settings.manage", req.url));
   const a = apiAdapter(provider);
   if (!a || a.auth !== "oauth" || !a.authorizeUrl) return back(`err=${encodeURIComponent("That package doesn't connect this way.")}`);
   if (!a.configured()) return back(`err=${encodeURIComponent(`${a.name} is not set up on the server yet.`)}`);

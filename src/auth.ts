@@ -9,7 +9,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { MAIN_COMPANY_ID, getCompany, getCompanyBySlug, platformDb, type Company } from "@/lib/platform";
 import { clientForCompany } from "@/lib/tenant";
-import { can, type Permission, type Role } from "@/lib/permissions";
+import { ROLE_LABELS, can, isPermission, type Permission, type Role } from "@/lib/permissions";
 
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
@@ -54,7 +54,7 @@ async function authorizeCompanyUser(company: Company, email: string, password: s
   const passwordHash = await bcrypt.hash(password, 12);
   const created = await db.user.upsert({
     where: { email },
-    update: { passwordHash, disabled: false, role: "ADMIN" },
+    update: { passwordHash, disabled: false, role: "ADMIN", customRoleId: null },
     create: { email, name: "Administrator", passwordHash, role: "ADMIN" },
   });
   return signedIn(created);
@@ -208,7 +208,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth(async (req) => {
   return buildConfig(googleTenant);
 });
 
-export type AppUser = { id: string; name: string; email: string; image?: string | null; role: Role; branchId?: string | null };
+export type AppUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+  /** Built-in role; for a custom role, the role it is based on. */
+  role: Role;
+  /** Set only for a custom role: exactly what the user may do. */
+  permissions?: Permission[] | null;
+  /** What to call their role: the custom role's name, or the built-in role's. */
+  roleName: string;
+  branchId?: string | null;
+};
 
 /** Local demo mode: only honoured outside production. Uses the main company. */
 export const authDisabled = process.env.AUTH_DISABLED === "true" && process.env.NODE_ENV !== "production";
@@ -228,7 +240,8 @@ export async function getSessionCompanyId(): Promise<string | null> {
 export const getUser = cache(async (): Promise<AppUser | null> => {
   if (authDisabled) {
     const demoRole = process.env.DEMO_ROLE;
-    return { id: "local-demo", name: "Demo User", email: "demo@localhost", role: demoRole === "OFFICE" || demoRole === "TECHNICIAN" ? demoRole : "ADMIN" };
+    const role: Role = demoRole === "OFFICE" || demoRole === "TECHNICIAN" ? demoRole : "ADMIN";
+    return { id: "local-demo", name: "Demo User", email: "demo@localhost", role, roleName: ROLE_LABELS[role] };
   }
   const session = (await auth()) as AppSession;
   // Customer portal sessions never count as staff.
@@ -238,9 +251,19 @@ export const getUser = cache(async (): Promise<AppUser | null> => {
   const company = await getCompany(companyId);
   if (!company?.active) return null;
   // JWT sessions outlive changes in the database, so re-check the account on each request.
-  const user = await clientForCompany(company).user.findUnique({ where: { id: session.user.id } });
+  const user = await clientForCompany(company).user.findUnique({ where: { id: session.user.id }, include: { customRole: true } });
   if (!user || user.disabled) return null;
-  return { id: user.id, name: user.name ?? user.email ?? "", email: user.email ?? "", image: user.image, role: user.role, branchId: user.branchId };
+  return {
+    id: user.id,
+    name: user.name ?? user.email ?? "",
+    email: user.email ?? "",
+    image: user.image,
+    role: user.role,
+    // Admins always keep every permission, whatever role record is linked.
+    permissions: user.customRole && user.role !== "ADMIN" ? user.customRole.permissions.filter(isPermission) : null,
+    roleName: user.customRole && user.role !== "ADMIN" ? user.customRole.name : ROLE_LABELS[user.role],
+    branchId: user.branchId,
+  };
 });
 
 /** Use at the top of every page and server action. */
@@ -256,7 +279,7 @@ export async function requireUser(): Promise<AppUser> {
  */
 export async function requirePermission(permission: Permission): Promise<AppUser> {
   const user = await requireUser();
-  if (!can(user.role, permission)) redirect(`/no-access?need=${permission}`);
+  if (!can(user, permission)) redirect(`/no-access?need=${permission}`);
   return user;
 }
 

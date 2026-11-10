@@ -1,5 +1,6 @@
 // Roles and what each may do. This is the single place the rules live: pages, server
-// actions and the menu all ask `can(role, permission)`.
+// actions and the menu all ask `can(user, permission)`. Admins can also set up custom roles
+// (Settings → Roles) with their own set of permissions; see `can` below.
 //
 //   ADMIN       everything, including company settings, users and deleting records
 //   OFFICE      customers, quotations, job cards, invoices, payments, calendar
@@ -78,14 +79,87 @@ export function isRole(v: unknown): v is Role {
   return typeof v === "string" && (ROLES as readonly string[]).includes(v);
 }
 
-export function can(role: Role, permission: Permission): boolean {
-  return (RULES[permission] as readonly Role[]).includes(role);
+/**
+ * Who is asking: a built-in role, or a user. A user with a custom role (Settings → Roles) has
+ * exactly that role's `permissions`; otherwise their built-in role's.
+ */
+export type Access = Role | { role: Role; permissions?: readonly string[] | null };
+
+export function can(who: Access, permission: Permission): boolean {
+  if (typeof who === "string") return (RULES[permission] as readonly Role[]).includes(who);
+  if (who.permissions) return who.permissions.includes(permission);
+  return (RULES[permission] as readonly Role[]).includes(who.role);
 }
 
-/** Technicians may open a job card only when it is assigned to them. */
-export function canAccessJobCard(user: { id: string; role: Role }, jobCard: { technicianId: string | null }): boolean {
-  return can(user.role, "jobcards.viewAll") || jobCard.technicianId === user.id;
+/** Without "See all job cards", a user may open a job card only when it is assigned to them. */
+export function canAccessJobCard(user: { id: string; role: Role; permissions?: readonly string[] | null }, jobCard: { technicianId: string | null }): boolean {
+  return can(user, "jobcards.viewAll") || jobCard.technicianId === user.id;
 }
+
+export const PERMISSIONS = Object.keys(RULES) as Permission[];
+
+export function isPermission(v: unknown): v is Permission {
+  return typeof v === "string" && v in RULES;
+}
+
+/** The permissions a built-in role has, e.g. to start a custom role from. */
+export function permissionsOf(role: Role): Permission[] {
+  return PERMISSIONS.filter((p) => can(role, p));
+}
+
+/** A custom role's value in a role select: "custom:<id>". */
+export const CUSTOM_ROLE_PREFIX = "custom:";
+
+/** Custom roles can be based on these; Admin always has everything and stays built-in only. */
+export const CUSTOM_BASE_ROLES = ["OFFICE", "TECHNICIAN"] as const satisfies readonly Role[];
+
+/** Every permission, grouped and explained, for the custom role editor in Settings → Roles. */
+export const PERMISSION_INFO: Record<Permission, { group: string; label: string; help?: string }> = {
+  "dashboard.money": { group: "General", label: "See prices, totals and money figures", help: "Without it, prices are hidden on job cards and the dashboard." },
+  "customers.view": { group: "Customers", label: "See customers" },
+  "customers.edit": { group: "Customers", label: "Add and edit customers and their contacts" },
+  "customers.delete": { group: "Customers", label: "Delete customers" },
+  "portal.manage": { group: "Customers", label: "Give customers access to the customer portal" },
+  "assets.edit": { group: "Customers", label: "Add and edit customer assets" },
+  "assets.check": { group: "Customers", label: "Record asset checks on job cards they can open" },
+  "assets.delete": { group: "Customers", label: "Delete customer assets" },
+  "queries.view": { group: "Customers", label: "See customer queries and complaints" },
+  "queries.edit": { group: "Customers", label: "Log, assign and resolve queries" },
+  "queries.delete": { group: "Customers", label: "Delete queries" },
+  "quotations.view": { group: "Quotations", label: "See quotations" },
+  "quotations.edit": { group: "Quotations", label: "Create and edit quotations" },
+  "quotations.delete": { group: "Quotations", label: "Delete quotations" },
+  "jobcards.viewAll": { group: "Job cards", label: "See all job cards", help: "Without it, only job cards assigned to them." },
+  "jobcards.create": { group: "Job cards", label: "Create job cards" },
+  "jobcards.edit": { group: "Job cards", label: "Fill in and sign off job cards they can open" },
+  "jobcards.assign": { group: "Job cards", label: "Assign job cards: customer, technician, schedule, scope" },
+  "jobcards.delete": { group: "Job cards", label: "Delete job cards" },
+  "time.track": { group: "Job cards", label: "Record their own time on jobs" },
+  "time.manageAll": { group: "Job cards", label: "Manage everyone's time and see labour rates" },
+  "calendar.viewAll": { group: "Calendar", label: "See the whole calendar", help: "Without it, only events of their own job cards." },
+  "calendar.edit": { group: "Calendar", label: "Add and edit appointments" },
+  "invoices.view": { group: "Invoices", label: "See invoices" },
+  "invoices.edit": { group: "Invoices", label: "Create and edit invoices" },
+  "invoices.approve": { group: "Invoices", label: "Approve invoices", help: "When Settings → Invoice approval is on." },
+  "invoices.delete": { group: "Invoices", label: "Delete invoices" },
+  "payments.record": { group: "Invoices", label: "Record payments" },
+  "payments.delete": { group: "Invoices", label: "Delete payments" },
+  "labour.bill": { group: "Invoices", label: "Put unbilled labour on an invoice" },
+  "materials.bill": { group: "Invoices", label: "Put used stock on an invoice" },
+  "inventory.view": { group: "Inventory", label: "See stock items, all locations and cost prices" },
+  "inventory.manage": { group: "Inventory", label: "Add items, receive, transfer and count stock" },
+  "inventory.delete": { group: "Inventory", label: "Delete stock items" },
+  "stock.use": { group: "Inventory", label: "Record stock used on job cards they can open" },
+  "reports.view": { group: "Reports and money", label: "Reports, cashflow and marketing figures" },
+  "profit.view": { group: "Reports and money", label: "Profit and loss (includes wages and expenses)" },
+  "expenses.manage": { group: "Reports and money", label: "Record business expenses" },
+  "email.connect": { group: "Email marketing", label: "Connect their own mailbox" },
+  "campaigns.edit": { group: "Email marketing", label: "Write email campaigns and send tests" },
+  "campaigns.send": { group: "Email marketing", label: "Send campaigns to customers" },
+  "campaigns.delete": { group: "Email marketing", label: "Delete campaigns" },
+  "settings.manage": { group: "Administration", label: "Company settings" },
+  "users.manage": { group: "Administration", label: "Manage users and roles" },
+};
 
 /** The permission table, for the Settings → Users screen. */
 export const PERMISSION_TABLE: { label: string; permission: Permission; note?: Partial<Record<Role, string>> }[] = [

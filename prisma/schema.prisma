@@ -29,7 +29,9 @@ model User {
   image         String?
   passwordHash  String? // set for email + password sign-in
   disabled      Boolean   @default(false)
-  role          Role      @default(OFFICE)
+  role          Role      @default(OFFICE) // built-in role; with a custom role, the role it was based on
+  customRoleId  String? // custom role: its permissions replace the built-in role's (see src/lib/permissions.ts)
+  customRole    CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   jobCards      JobCard[] // job cards assigned to this user as technician
   labourRate    Int? // cents per hour excl. VAT; overrides Settings.labourRate when set
   timeEntries   TimeEntry[]
@@ -43,6 +45,19 @@ model User {
   sessions      Session[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+/// A role an admin sets up in Settings → Roles: a name and the exact permissions it has.
+/// Users with a custom role keep `role` set to its base role, which they fall back to if it is deleted.
+model CustomRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  baseRole    Role     @default(OFFICE) // OFFICE or TECHNICIAN; never ADMIN
+  permissions String[] @default([])
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Account {

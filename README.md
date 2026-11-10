@@ -107,6 +107,14 @@ Every user has one role. The rules live in `src/lib/permissions.ts`; pages, serv
 - Opening a page or action without permission leads to `/no-access`.
 - Local demo mode (`AUTH_DISABLED=true`) signs you in as an Admin; set `DEMO_ROLE=OFFICE` or `DEMO_ROLE=TECHNICIAN` to try the other roles.
 
+### Custom roles
+
+**Settings → Users & roles → Set up custom roles** (`/settings/roles`, admins only): create roles such as *Sales rep*, *Supervisor* or *Bookkeeper* and tick exactly which of the 44 permissions each has, grouped by area (customers, quotations, job cards, calendar, invoices, inventory, reports, email marketing, administration). **Start from** ticks what Office or Technician has, as a starting point. Give a role to a user in the role list under Users & roles, where custom roles appear under *Custom roles*.
+
+- A user with a custom role has exactly its ticked permissions; the menu, pages and actions follow them, and changes apply on their next click. Without *See all job cards* they see only jobs assigned to them, like a technician.
+- Each custom role **falls back to** Office or Technician: its users get that built-in role if the role is deleted, and are listed that way when assigning jobs. Admin is never a custom role and always has everything.
+- Someone given *Manage users* through a custom role cannot make anyone an admin, change an admin's role, password or access, change their own role, or set up roles.
+
 ## Job statuses, forms and checklists
 
 **Custom job statuses** (Settings → Job statuses): your own names and colours, e.g. "Awaiting parts". Each belongs to one of the four stages (Scheduled, In progress, Completed, Cancelled). The stage drives the dashboard, the calendar and Google sync; the custom name is what people see on the job card, the job list and the filter. Pick one in the job card's Status list, or with "Other status…" on the job card page. Deleting a status puts its job cards back on their stage. Three examples are added on first deploy; rename or delete them.

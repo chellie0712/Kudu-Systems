@@ -65,9 +65,9 @@ export async function saveJobCard(fd: FormData) {
   const db = await tenantDb();
   const user = await requirePermission("jobcards.edit");
   const id = str(fd, "id");
-  if (!id && !can(user.role, "jobcards.create")) redirect("/no-access?need=jobcards.create");
+  if (!id && !can(user, "jobcards.create")) redirect("/no-access?need=jobcards.create");
   const before = id ? await jobCardFor(user, id) : null;
-  const canAssign = can(user.role, "jobcards.assign");
+  const canAssign = can(user, "jobcards.assign");
   const photos = parseJson<PhotoRef[]>(fd, "photos", []).filter((p) => p && typeof p.id === "string");
   const customerSignature = str(fd, "customerSignature") || null;
 
@@ -184,7 +184,7 @@ export async function setJobCardStatus(fd: FormData) {
   await jobCardFor(user, id);
   const chosen = await resolveStatus(str(fd, "status"));
   if (!chosen) redirect(`/job-cards/${id}?err=Unknown+status`);
-  if (chosen.status === JobCardStatus.CANCELLED && !can(user.role, "jobcards.assign")) redirect(`/job-cards/${id}?err=Only+the+office+can+cancel+a+job`);
+  if (chosen.status === JobCardStatus.CANCELLED && !can(user, "jobcards.assign")) redirect(`/job-cards/${id}?err=Only+the+office+can+cancel+a+job`);
   if (chosen.status === JobCardStatus.COMPLETED) {
     const lists = await db.jobCardChecklist.findMany({ where: { jobCardId: id } });
     const unfinished = incompleteRequired(lists.map((l) => ({ ...l, items: parseItems(l.items) })));

@@ -11,7 +11,7 @@ import type { OfflinePack } from "@/lib/offline";
 export async function GET() {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-  if (!can(user.role, "jobcards.edit")) return NextResponse.json({ error: "No access" }, { status: 403 });
+  if (!can(user, "jobcards.edit")) return NextResponse.json({ error: "No access" }, { status: 403 });
   const db = await tenantDb();
   const settings = await getSettings();
   const jobs = await db.jobCard.findMany({

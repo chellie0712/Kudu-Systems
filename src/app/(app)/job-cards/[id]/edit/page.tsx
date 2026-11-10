@@ -17,7 +17,7 @@ export default async function EditJobCardPage({
   searchParams: Promise<{ msg?: string }>;
 }) {
   const user = await requireUser();
-  const canAssign = can(user.role, "jobcards.assign");
+  const canAssign = can(user, "jobcards.assign");
   const db = await tenantDb();
   const { id } = await params;
   const { msg } = await searchParams;

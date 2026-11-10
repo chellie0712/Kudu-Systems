@@ -56,7 +56,7 @@ export default async function JobCardPage({
   ]);
   if (!j) notFound();
   if (!canAccessJobCard(user, j)) redirect("/no-access?need=jobcards.viewAll");
-  const may = (p: Parameters<typeof can>[1]) => can(user.role, p);
+  const may = (p: Parameters<typeof can>[1]) => can(user, p);
   const onGoogle = j.events.some((e) => e.googleEventId);
   const customStatuses = await db.jobStatus.findMany({
     where: { active: true, id: { not: j.statusId ?? "" }, ...(may("jobcards.assign") ? {} : { stage: { not: "CANCELLED" } }) },

@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const fail = (m: string) => back(`err=${encodeURIComponent(m)}`);
   const user = await getUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
-  if (!can(user.role, "email.connect")) return NextResponse.redirect(new URL("/no-access?need=email.connect", req.url));
+  if (!can(user, "email.connect")) return NextResponse.redirect(new URL("/no-access?need=email.connect", req.url));
   if (provider !== "google" && provider !== "microsoft") return fail("Unknown mail provider.");
   const jar = await cookies();
   const expected = jar.get(MAILBOX_STATE_COOKIE)?.value;

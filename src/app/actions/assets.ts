@@ -33,8 +33,8 @@ export async function saveAsset(fd: FormData) {
     customerId = jc.customerId;
     back = `/job-cards/${jc.id}`;
     hash = "#assets";
-    if (id && !can(user.role, "assets.edit")) go(back, "err", "Ask the office to change an existing asset.", hash);
-  } else if (!can(user.role, "assets.edit")) {
+    if (id && !can(user, "assets.edit")) go(back, "err", "Ask the office to change an existing asset.", hash);
+  } else if (!can(user, "assets.edit")) {
     redirect("/no-access?need=assets.edit");
   }
 

@@ -21,7 +21,7 @@ export const getBranches = cache(async () => {
  */
 export const currentBranchId = cache(async (): Promise<string | null> => {
   const user = await getUser();
-  if (!user || !can(user.role, "customers.view")) return null;
+  if (!user || !can(user, "customers.view")) return null;
   const branches = await getBranches();
   if (!branches.length) return null;
   const chosen = (await cookies()).get(BRANCH_COOKIE)?.value;

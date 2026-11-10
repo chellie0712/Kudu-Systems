@@ -46,7 +46,7 @@ export default async function InvoicePage({
   const balance = inv.total - inv.amountPaid;
   const status = invoiceDisplayStatus(inv);
   const approval = approvalState(inv, settings);
-  const canApprove = can(user.role, "invoices.approve");
+  const canApprove = can(user, "invoices.approve");
   // Accounting package (Settings → Accounting). Pastel is by file, so it has no buttons here.
   const acctProvider = settings.accountingProvider;
   const acctRow = acctProvider ? await db.accountingLink.findUnique({ where: { provider: acctProvider } }) : null;
@@ -112,7 +112,7 @@ export default async function InvoicePage({
                   <button className="btn-outline py-1 text-xs">Check {acctWho} for payments</button>
                 </form>
               )}
-              {inv.status !== "CANCELLED" && can(user.role, "invoices.edit") && (
+              {inv.status !== "CANCELLED" && can(user, "invoices.edit") && (
                 <form action={sendInvoiceToAccountingNow}>
                   <input type="hidden" name="id" value={inv.id} />
                   <button className="btn-outline py-1 text-xs">{inBooks ? `Send again to ${acctWho}` : `Send to ${acctWho}`}</button>
@@ -194,7 +194,7 @@ export default async function InvoicePage({
                       <div className="text-xs text-charcoal-500">{fmtDate(p.date)} · {p.method}{p.reference && ` · ${p.reference}`}{p.acctId && !p.fromAccounting && ` · in ${shortName(p.acctLink)}`}{p.fromAccounting && ` · from ${shortName(p.acctLink)}`}</div>
                       {p.acctError && <div className="text-xs text-kudu-700">{shortName(p.acctLink || acctProvider)}: {p.acctError}</div>}
                     </div>
-                    {can(user.role, "payments.delete") && (
+                    {can(user, "payments.delete") && (
                       <form action={deletePayment}>
                         <input type="hidden" name="id" value={p.id} />
                         <ConfirmButton message="Remove this payment?" className="text-xs text-charcoal-400 hover:text-kudu-600">Remove</ConfirmButton>
@@ -221,7 +221,7 @@ export default async function InvoicePage({
               </form>
             )}
           </div>
-          {can(user.role, "invoices.delete") && (
+          {can(user, "invoices.delete") && (
             <form action={deleteInvoice} className="text-right">
               <input type="hidden" name="id" value={inv.id} />
               <ConfirmButton message={`Delete invoice ${inv.number} and its payments? Consider cancelling instead to keep your numbering intact.`}>

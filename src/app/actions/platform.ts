@@ -69,7 +69,7 @@ export async function createCompany(fd: FormData) {
       const passwordHash = await bcrypt.hash(adminPassword, 12);
       await db.user.upsert({
         where: { email: adminEmail },
-        update: { passwordHash, disabled: false, role: "ADMIN" },
+        update: { passwordHash, disabled: false, role: "ADMIN", customRoleId: null },
         create: { email: adminEmail, name: adminName || "Administrator", passwordHash, role: "ADMIN" },
       });
     } finally {

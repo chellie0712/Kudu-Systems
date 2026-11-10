@@ -32,7 +32,7 @@ export default async function StockItemPage({ params, searchParams }: { params: 
     getSettings(),
   ]);
   if (!item) notFound();
-  const manage = can(user.role, "inventory.manage");
+  const manage = can(user, "inventory.manage");
   const total = roundQty(item.levels.reduce((s, l) => s + l.quantity, 0));
   const sym = settings.currencySymbol;
   const levels = item.levels.filter((l) => l.quantity !== 0 || l.location.active).sort((a, b) => a.location.name.localeCompare(b.location.name));
@@ -84,7 +84,7 @@ export default async function StockItemPage({ params, searchParams }: { params: 
         {item.movements.length === 0 ? <Empty>No movements yet.</Empty> : <MovementTable rows={item.movements} />}
       </div>
 
-      {can(user.role, "inventory.delete") && (
+      {can(user, "inventory.delete") && (
         <form action={deleteStockItem} className="text-right">
           <input type="hidden" name="id" value={item.id} />
           <ConfirmButton message={`Delete ${item.name} and its whole stock history?`}>Delete item</ConfirmButton>

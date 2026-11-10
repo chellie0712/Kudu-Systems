@@ -16,7 +16,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   const user = await requirePermission("inventory.view");
   const db = await tenantDb();
   const { msg, err, show } = await searchParams;
-  const manage = can(user.role, "inventory.manage");
+  const manage = can(user, "inventory.manage");
   const [items, allLocations, settings, people, recent] = await Promise.all([
     stockOverview(db),
     db.stockLocation.findMany({ include: { user: { select: { name: true, email: true } } }, orderBy: [{ type: "asc" }, { name: "asc" }] }),
