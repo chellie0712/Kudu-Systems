@@ -343,6 +343,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <Link href="/settings/tasks" className="btn-outline">Task rules &amp; escalation</Link>
       </div>
 
+      <div id="api" className="card mt-6 flex flex-wrap items-center justify-between gap-3 p-6">
+        <div>
+          <SectionTitle>API &amp; webhooks</SectionTitle>
+          <p className="text-sm text-charcoal-500">
+            Connect other systems such as Zapier, Make or your website: API keys to look things up and add customers or queries, and webhooks that tell other systems when something happens.
+          </p>
+        </div>
+        <Link href="/settings/api" className="btn-outline">API &amp; webhooks</Link>
+      </div>
+
       <div id="statuses" className="card mt-6 p-6">
         <SectionTitle>Job statuses</SectionTitle>
         <p className="mb-3 text-sm text-charcoal-500">

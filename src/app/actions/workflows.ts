@@ -68,6 +68,7 @@ function problems(trigger: string, actions: WorkflowAction[], conditionFields: s
     if (a.type === "email" && (!a.title || !a.body)) out.push("The email needs a subject and a message.");
     if ((a.type === "jobStatus" || a.type === "quoteStatus") && !a.status) out.push("Choose the status to change to.");
     if (a.type === "makeDoc" && !a.templateId) out.push("Choose the document template.");
+    if (a.type === "webhook" && !a.webhookId) out.push("Choose the webhook to send to.");
   }
   return out;
 }

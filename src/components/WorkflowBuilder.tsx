@@ -309,6 +309,14 @@ export function WorkflowBuilder({ initial, lists, taskCategories, queryCategorie
                 {a.type === "quoteStatus" && (
                   <Select label="New status" value={a.status} onChange={(status) => setAct(i, { status })} options={{ "": "Choose…", ...QUOTE_STATUSES }} />
                 )}
+                {a.type === "webhook" && (
+                  <Select
+                    label="Webhook"
+                    value={a.webhookId}
+                    onChange={(webhookId) => setAct(i, { webhookId })}
+                    options={{ "": Object.keys(lists.webhooks).length ? "Choose…" : "No webhooks yet (Settings → API & webhooks)", ...lists.webhooks }}
+                  />
+                )}
                 {a.type === "makeDoc" && (
                   <Select
                     label="Template"

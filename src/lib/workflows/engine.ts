@@ -437,6 +437,12 @@ async function doAction(db: PrismaClient, wf: Workflow, a: WorkflowAction, ctx: 
       const doc = await generateDocument(db, a.templateId, ctx.id, { name: by });
       return { action: label, ok: true, message: `${doc.name} ${doc.number} made`, link: `/documents/${doc.id}` };
     }
+    case "webhook": {
+      if (!a.webhookId) throw new Error("No webhook chosen");
+      const { webhookFromWorkflow } = await import("@/lib/integrations/webhooks");
+      const sent = await webhookFromWorkflow(db, a.webhookId, wf, ctx.id);
+      return { action: label, ok: true, message: `Sent to “${sent.webhook}” (see Settings → API & webhooks for the answer)`, link: `/settings/api/webhooks/${a.webhookId}` };
+    }
     case "invoiceFromJob": {
       subjectOnly("job");
       const existing = await db.invoice.findFirst({ where: { jobCardId: ctx.id, status: { not: "CANCELLED" } }, select: { id: true, number: true } });
