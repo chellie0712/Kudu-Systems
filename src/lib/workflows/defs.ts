@@ -149,6 +149,11 @@ export const ACTIONS = {
   jobFromQuote: { label: "Create a job card from the quotation", subjects: ["quote"], help: "Once per quotation. The job card is left without a date or technician for the office to book." },
   invoiceFromJob: { label: "Create a draft invoice from the job card", subjects: ["job"], help: "Once per job card. Copies the quotation lines and unbilled labour; somebody checks it before sending." },
   makeDoc: { label: "Make a document from a template", subjects: ["customer", "quote", "job", "invoice"], help: "For example a certificate of treatment when the client signs off. Templates are under Documents → Templates." },
+  webhook: {
+    label: "Send it to another system (webhook)",
+    subjects: "all",
+    help: "Posts the record as JSON to a webhook set up under Settings → API & webhooks, e.g. to Zapier, Make or your own system. Retried if it is not accepted.",
+  },
 } satisfies Record<string, ActionDef>;
 
 export type ActionType = keyof typeof ACTIONS;
@@ -209,6 +214,7 @@ const actionSchema = z.object({
   to: z.string().max(60).default("customer"), // EMAIL_TO key, or "user:<id>"
   status: z.string().max(60).default(""), // jobStatus / quoteStatus
   templateId: z.string().max(60).default(""), // makeDoc
+  webhookId: z.string().max(60).default(""), // webhook
 });
 export type WorkflowAction = z.infer<typeof actionSchema>;
 
@@ -233,6 +239,7 @@ export type BuilderLists = {
   jobStatuses: Record<string, string>; // "SCHEDULED" etc. and "custom:<id>"
   forms: Record<string, string>;
   templates: Record<string, { name: string; subject: string }>; // document templates
+  webhooks: Record<string, string>; // webhook id → name (switched-on ones)
 };
 
 /** Plain-language summary for lists, e.g. "When a quotation's status changes to Accepted". */

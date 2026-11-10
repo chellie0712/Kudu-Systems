@@ -4,13 +4,14 @@ import type { BuilderLists } from "./defs";
 
 /** The company's people, mailboxes, branches, job statuses and forms, for the builder's drop-downs. */
 export async function builderLists(db: PrismaClient): Promise<BuilderLists> {
-  const [users, mailboxes, branches, statuses, forms, templates] = await Promise.all([
+  const [users, mailboxes, branches, statuses, forms, templates, webhooks] = await Promise.all([
     db.user.findMany({ where: { disabled: false }, select: { id: true, name: true, email: true }, orderBy: { name: "asc" } }),
     db.mailAccount.findMany({ where: { user: { disabled: false } }, select: { userId: true, email: true, user: { select: { name: true } } } }),
     db.branch.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.jobStatus.findMany({ select: { id: true, name: true, stage: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     db.form.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     db.docTemplate.findMany({ where: { active: true }, select: { id: true, name: true, appliesTo: true }, orderBy: { name: "asc" } }),
+    db.webhook.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const stageName = (s: string) => STAGES.find((x) => x.value === s)?.label ?? s;
   return {
@@ -23,5 +24,6 @@ export async function builderLists(db: PrismaClient): Promise<BuilderLists> {
     },
     forms: Object.fromEntries(forms.map((f) => [f.id, f.name])),
     templates: Object.fromEntries(templates.map((t) => [t.id, { name: t.name, subject: t.appliesTo }])),
+    webhooks: Object.fromEntries(webhooks.map((w) => [w.id, w.name])),
   };
 }

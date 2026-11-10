@@ -5,7 +5,7 @@ import type { TriggerKey } from "./defs";
 export type EventInfo = { status?: string | string[]; formId?: string };
 
 /**
- * Tells the workflows that something happened, e.g. emit(db, "job.status", id, { status: "COMPLETED" }).
+ * Tells the workflows (and webhooks) that something happened, e.g. emit(db, "job.status", id, { status: "COMPLETED" }).
  * Never throws: a broken workflow must not stop the thing that triggered it. The engine is loaded on
  * demand so that the libraries it uses can call emit() themselves.
  */
@@ -15,5 +15,11 @@ export async function emit(db: PrismaClient, trigger: TriggerKey, subjectId: str
     await fireEvent(db, trigger, subjectId, info);
   } catch (e) {
     console.error(`Workflow event ${trigger} failed`, e);
+  }
+  try {
+    const { webhookEvent } = await import("@/lib/integrations/webhooks");
+    await webhookEvent(db, trigger, subjectId);
+  } catch (e) {
+    console.error(`Webhooks for ${trigger} failed`, e);
   }
 }

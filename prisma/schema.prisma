@@ -1325,3 +1325,57 @@ model GeneratedDoc {
   @@index([customerId])
   @@index([jobCardId])
 }
+
+// ---------- API keys and webhooks (Settings → API & webhooks) ----------
+
+/// A key another system uses to call Kudu's API (/api/v1). Only a hash is kept; the key is shown once.
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String // the start of the key, to tell keys apart, e.g. "kudu_acme_Ab12…"
+  hash       String    @unique // sha256 of the whole key
+  access     String    @default("read") // "read" or "write" (write includes read)
+  createdBy  String    @default("")
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+/// An address Kudu sends a signed JSON message to when chosen things happen, or from a workflow step.
+model Webhook {
+  id            String            @id @default(cuid())
+  name          String
+  url           String
+  secret        String // signing secret, encrypted (src/lib/secret.ts)
+  events        String[]          @default([]) // workflow trigger keys, e.g. "job.status"; none = only from workflows
+  active        Boolean           @default(true)
+  failures      Int               @default(0) // failed attempts in a row; switched off after too many
+  lastSuccessAt DateTime?
+  lastFailureAt DateTime?
+  lastError     String            @default("")
+  createdBy     String            @default("")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deliveries    WebhookDelivery[]
+}
+
+/// One message to a webhook, kept for 30 days. PENDING until it is accepted, FAILED once Kudu gives up.
+model WebhookDelivery {
+  id             String    @id @default(cuid())
+  webhookId      String
+  webhook        Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event          String
+  subjectId      String    @default("")
+  payload        Json
+  status         String    @default("PENDING") // PENDING, OK, FAILED
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime?
+  responseStatus Int?
+  responseBody   String    @default("")
+  error          String    @default("")
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
+}

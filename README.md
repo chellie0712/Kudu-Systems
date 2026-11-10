@@ -284,6 +284,25 @@ Not covered yet: status changes that come from the accounting packages (payments
 - **Printing.** Documents print or save as PDF from the browser.
 - **Customer portal.** Templates marked "Customers see it in the customer portal" appear under Documents in the portal.
 
+## API keys and webhooks
+
+Settings → API & webhooks (admins; permission `integrations.manage`) connects Kudu to other systems such as Zapier, Make, a website or a reporting tool. The full guide for developers is at Settings → API & webhooks → How to use the API.
+
+**API keys.** Each key has a name and is read only or read and write. The key (`kudu_<company code>_<secret>`) is shown once; only its SHA-256 hash is stored. The company code in the key picks the company's database. Keys can be revoked, and show when they were last used. Requests go to `/api/v1` with `Authorization: Bearer <key>`:
+
+- `GET /api/v1`: which company and what the key may do.
+- `GET /api/v1/customers`, `/quotations`, `/job-cards`, `/invoices`, `/queries` and `/<…>/{id}`. Newest first, `?limit=` (up to 100), `?cursor=`, `?updatedSince=`, `?customerId=`, `?status=`; customers also `?search=` and `?email=`.
+- `POST /api/v1/customers`, `PATCH /api/v1/customers/{id}` (write keys). The contact fields are the primary contact, as on the customer form.
+- `POST /api/v1/queries` (write keys): logs a query or website lead; with customer details instead of `customerId` the customer is found by email or added.
+
+New customers and queries made through the API start workflows and webhooks like ones made on screen. Amounts are rands with decimals, dates ISO 8601 UTC. At most 120 requests a minute per key (counted per server, so a rough limit).
+
+**Webhooks.** A webhook has an address (https only, on the public internet) and a list of events: the workflow triggers that happen at a moment (customer added, quotation/job/invoice/query created or status changed, payment recorded, sign-off, form filled in). Kudu POSTs `{ id, event, createdAt, company, link, data }`, where `data` holds the record in the API's shape, with headers `Kudu-Event`, `Kudu-Delivery` and `Kudu-Signature: t=<unix time>,v1=<hex HMAC-SHA256 of "<t>.<body>" with the webhook's signing secret>`. Messages are stored first and sent after the page has answered. One that gets no 2xx answer within 10 seconds is tried again after 1 minute, 10 minutes, 1 hour, 6 hours and 1 day (retries run when the dashboard loads and in the daily `/api/cron/workflows` job, so with nobody using Kudu a retry can come later). After 50 failed tries in a row the webhook is switched off. Each webhook page shows the last 50 messages (kept 30 days) with what was sent and the answer, and has Send test, Try again now and New secret. Signing secrets are stored encrypted with `AUTH_SECRET`.
+
+Workflows have a step **Send it to another system (webhook)**, which sends the record the workflow ran for to a chosen webhook (`event: "workflow"`).
+
+For testing on your own computer only, `WEBHOOKS_ALLOW_PRIVATE=1` allows `http://` and local addresses. Never set it on Vercel.
+
 ## Reports and cashflow
 
 **Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.

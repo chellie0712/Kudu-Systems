@@ -70,6 +70,7 @@ const RULES = {
   "forms.manage": ADMIN, // build forms and publish web forms
   "forms.delete": ADMIN, // delete forms and submissions
   "workflows.manage": ADMIN, // build automatic workflows and see what they did
+  "integrations.manage": ADMIN, // API keys for other systems, and webhooks that tell other systems what happened
   "documents.create": ALL, // make documents (certificates, letters...) from templates, for records they can open
   "documents.view": STAFF, // see all documents made from templates
   "documents.templates": ADMIN, // write and change document templates
@@ -164,6 +165,7 @@ export const PERMISSION_INFO: Record<Permission, { group: string; label: string;
   "documents.templates": { group: "Documents", label: "Write and change document templates" },
   "documents.delete": { group: "Documents", label: "Delete documents" },
   "workflows.manage": { group: "Administration", label: "Build workflows (automations)", help: "Workflows act for the whole company: they create tasks, change statuses and can send emails." },
+  "integrations.manage": { group: "Administration", label: "API keys and webhooks", help: "Other systems connected this way can read (and with a write key, add) customers and records." },
   "quotations.view": { group: "Quotations", label: "See quotations" },
   "quotations.edit": { group: "Quotations", label: "Create and edit quotations" },
   "quotations.delete": { group: "Quotations", label: "Delete quotations" },
@@ -228,6 +230,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Forms: see all submissions and web forms", permission: "forms.view", note: { TECHNICIAN: "Own only" } },
   { label: "Forms: build and publish", permission: "forms.manage" },
   { label: "Workflows (automations)", permission: "workflows.manage" },
+  { label: "API keys and webhooks", permission: "integrations.manage" },
   { label: "Documents: make from templates", permission: "documents.create", note: { TECHNICIAN: "Own jobs" } },
   { label: "Documents: write templates", permission: "documents.templates" },
   { label: "Reports and cashflow", permission: "reports.view" },
