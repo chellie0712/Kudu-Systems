@@ -40,6 +40,8 @@ model User {
   tasks         Task[]    @relation("TaskAssignee") // tasks assigned to this user
   escalatedTasks Task[]   @relation("TaskEscalation") // overdue tasks escalated to this user
   assignmentRules AssignmentRule[]
+  expenseClaims  Expense[]       @relation("ExpenseClaimant") // expense claims this user submitted
+  leaveRequests  LeaveRequest[]
   branchId      String? // home branch: the branch shown when they sign in
   branch        Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
   mailAccount   MailAccount? // the mailbox their email campaigns are sent from
@@ -175,6 +177,15 @@ model Settings {
   // Invoice approval
   invoiceApproval          Boolean @default(false) // invoices must be approved before they can be sent
   invoiceApprovalThreshold Int     @default(0) // cents incl. VAT; only invoices of at least this total need approval
+  // Other approvals (src/lib/approval.ts)
+  quoteApproval            Boolean @default(false) // quotations must be approved before they can be sent
+  quoteApprovalThreshold   Int     @default(0) // cents incl. VAT
+  poPrefix                 String  @default("PO-")
+  nextPoNo                 Int     @default(1)
+  poApproval               Boolean @default(true) // purchase orders must be approved before they are ordered
+  poApprovalThreshold      Int     @default(0) // cents incl. VAT
+  claimAutoApprove         Int     @default(0) // cents incl. VAT; expense claims below this are approved automatically, 0 = all need approval
+  annualLeaveDays          Float   @default(15) // working days of annual leave per year (BCEA minimum is 15)
   warrantyCovers     String  @default("General Pest Control\nTermites / WDI\nRodents\nFumigation\nOther") // one option per line
   warrantyTerms      String  @default("Covers re-treatment of the pest species and areas listed above, if activity recurs under normal conditions; a follow-up fee is applicable.\nExcludes new infestations by a different pest, and conditions beyond our control (alterations, water damage, etc.).\nNotify us in writing within 14 days of any recurring activity to remain covered under this warranty.\nVoid if unauthorised pest control products or other contractors are used in the treated area.\nReasonable access must be given for re-treatment visits; failure to do so may void cover for that area.\nNon-transferable — applies only to the client and property named above.") // one term per line
 }
@@ -293,6 +304,12 @@ model Quotation {
   items       QuotationItem[]
   jobCards    JobCard[]
   invoices    Invoice[]
+  // Approval (see Settings → Approvals)
+  approvalRequestedAt DateTime?
+  approvalRequestedBy String    @default("")
+  approvedAt          DateTime?
+  approvedBy          String    @default("")
+  approvalNote        String    @default("") // reason given when sent back
   tasks       Task[]
   // Answer given by the customer in the customer portal
   response     String          @default("") // "ACCEPTED" or "DECLINED"
@@ -477,6 +494,7 @@ model StockItem {
   active       Boolean         @default(true)
   levels       StockLevel[]
   movements    StockMovement[]
+  poLines      PurchaseOrderLine[]
   createdAt    DateTime        @default(now())
 }
 
@@ -493,6 +511,7 @@ model StockLocation {
   user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   active   Boolean           @default(true)
   levels   StockLevel[]
+  purchaseOrders PurchaseOrder[]
   movesOut StockMovement[]   @relation("from")
   movesIn  StockMovement[]   @relation("to")
 }
@@ -819,7 +838,15 @@ model AdSpend {
   @@index([date])
 }
 
+enum ExpenseStatus {
+  SUBMITTED // an expense claim waiting for approval
+  APPROVED // counts in the profit & loss
+  REJECTED
+}
+
 /// A business cost for the profit & loss report: wages, fuel, rent, chemicals bought, other advertising…
+/// Entered by the office (approved straight away) or claimed by staff who paid out of their own
+/// pocket (SUBMITTED until approved, then reimbursed).
 model Expense {
   id          String   @id @default(cuid())
   date        DateTime
@@ -830,8 +857,116 @@ model Expense {
   createdBy   String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  status      ExpenseStatus @default(APPROVED)
+  // Expense claims
+  claimantId    String?
+  claimant      User?     @relation("ExpenseClaimant", fields: [claimantId], references: [id], onDelete: SetNull)
+  claimantName  String    @default("")
+  totalPaid     Int       @default(0) // cents incl. VAT the claimant paid and is owed back
+  receipt       String?   @db.Text // compressed JPEG data URL of the slip
+  submittedAt   DateTime?
+  decidedAt     DateTime?
+  decidedBy     String    @default("")
+  decisionNote  String    @default("") // reason when rejected
+  reimbursedAt  DateTime?
+  reimbursedBy  String    @default("")
 
   @@index([date])
+  @@index([status])
+  @@index([claimantId])
+}
+
+// ---------- Purchase orders ----------
+
+enum PoStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  APPROVED
+  ORDERED // sent to the supplier
+  PARTLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id                  String              @id @default(cuid())
+  number              String              @unique
+  supplier            String
+  supplierEmail       String              @default("")
+  supplierRef         String              @default("") // the supplier's quote or order number
+  status              PoStatus            @default(DRAFT)
+  locationId          String? // where the stock is delivered
+  location            StockLocation?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  expectedAt          DateTime?
+  notes               String              @default("")
+  vatRate             Float               @default(15)
+  subtotal            Int                 @default(0)
+  vatAmount           Int                 @default(0)
+  total               Int                 @default(0)
+  approvalRequestedAt DateTime?
+  approvalRequestedBy String              @default("")
+  approvedAt          DateTime?
+  approvedBy          String              @default("")
+  approvalNote        String              @default("") // reason given when sent back
+  orderedAt           DateTime?
+  createdById         String?
+  createdBy           String              @default("")
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  lines               PurchaseOrderLine[]
+
+  @@index([status])
+}
+
+model PurchaseOrderLine {
+  id          String        @id @default(cuid())
+  poId        String
+  po          PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  itemId      String? // the stock item; empty for things that are not kept in stock
+  item        StockItem?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  description String
+  quantity    Float
+  unitCost    Int // cents excl. VAT
+  received    Float         @default(0)
+  sortOrder   Int           @default(0)
+}
+
+// ---------- Leave ----------
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  FAMILY // family responsibility
+  STUDY
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         LeaveType   @default(ANNUAL)
+  startDate    DateTime // date only (UTC midnight)
+  endDate      DateTime // date only, inclusive
+  halfDay      Boolean     @default(false) // a single half day
+  days         Float // working days, excluding weekends and public holidays
+  reason       String      @default("")
+  status       LeaveStatus @default(PENDING)
+  decidedAt    DateTime?
+  decidedBy    String      @default("")
+  decisionNote String      @default("")
+  createdAt    DateTime    @default(now())
+
+  @@index([userId, startDate])
+  @@index([status])
 }
 
 // ---------- Email marketing ----------

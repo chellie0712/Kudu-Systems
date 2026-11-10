@@ -157,7 +157,8 @@ export async function approveInvoice(fd: FormData) {
   await db.invoice.update({ where: { id }, data: { approvedAt: new Date(), approvedBy: user.name, approvalNote: "" } });
   await autoSend(db, id);
   revalidatePath("/invoices");
-  redirect(`/invoices/${id}?msg=Invoice+approved`);
+  const back = str(fd, "returnTo");
+  redirect(back.startsWith("/approvals") ? `${back}?msg=Invoice+approved` : `/invoices/${id}?msg=Invoice+approved`);
 }
 
 /** Sends the invoice back to whoever submitted it, with a reason. */
@@ -169,5 +170,6 @@ export async function rejectInvoice(fd: FormData) {
   if (!note) redirect(`/invoices/${id}?err=${encodeURIComponent("Say why it is sent back, so it can be fixed.")}`);
   await db.invoice.update({ where: { id }, data: { approvalRequestedAt: null, approvedAt: null, approvedBy: "", approvalNote: note } });
   revalidatePath("/invoices");
-  redirect(`/invoices/${id}?msg=Invoice+sent+back`);
+  const back = str(fd, "returnTo");
+  redirect(back.startsWith("/approvals") ? `${back}?msg=Invoice+sent+back` : `/invoices/${id}?msg=Invoice+sent+back`);
 }

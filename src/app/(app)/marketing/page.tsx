@@ -76,7 +76,7 @@ export default async function MarketingPage({
     showProfit
       ? db.stockMovement.findMany({ where: { kind: "USE", createdAt: inRange }, select: { createdAt: true, quantity: true, item: { select: { costPrice: true } } } })
       : [],
-    showProfit ? db.expense.findMany({ where: { date: inRange }, select: { date: true, category: true, amount: true } }) : [],
+    showProfit ? db.expense.findMany({ where: { date: inRange, status: "APPROVED" }, select: { date: true, category: true, amount: true } }) : [],
   ]);
 
   // ----- Per channel and campaign -----

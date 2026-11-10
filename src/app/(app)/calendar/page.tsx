@@ -9,6 +9,7 @@ import { googleConfigured } from "@/lib/google";
 import { syncNow } from "@/app/actions/calendar";
 import { Flash, PageHeader, SectionTitle } from "@/components/ui";
 import { EventForm } from "@/components/EventForm";
+import { LEAVE_TYPE_LABELS, publicHolidays } from "@/lib/leave";
 
 export const metadata = { title: "Calendar" };
 
@@ -53,6 +54,19 @@ export default async function CalendarPage({
     all ? db.customer.findMany({ where: { archived: false, ...(branchId ? { branchId } : {}) }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
     getSettings(),
   ]);
+
+  // Approved leave (everyone's with "See everyone's leave", else your own) and public holidays.
+  const leave = await db.leaveRequest.findMany({
+    where: {
+      status: "APPROVED",
+      startDate: { lte: new Date(`${days[41]}T00:00:00Z`) },
+      endDate: { gte: new Date(`${days[0]}T00:00:00Z`) },
+      ...(can(user, "leave.viewAll") ? {} : { userId: user.id }),
+    },
+    include: { user: { select: { name: true, email: true } } },
+  });
+  const leaveOn = (d: string) => leave.filter((l) => l.startDate.toISOString().slice(0, 10) <= d && l.endDate.toISOString().slice(0, 10) >= d);
+  const holidays = new Map([...publicHolidays(y - 1), ...publicHolidays(y), ...publicHolidays(y + 1)]);
 
   // Bucket events per day; multi-day events show on every day they cover.
   const byDay = new Map<string, typeof events>();
@@ -139,7 +153,18 @@ export default async function CalendarPage({
                   >
                     {Number(d.slice(8))}
                   </Link>
+                  {holidays.has(d) && <div className="mb-0.5 truncate px-1 text-[11px] font-medium text-kudu-700" title={holidays.get(d)}>{holidays.get(d)}</div>}
                   <div className="space-y-0.5">
+                    {leaveOn(d).map((l) => (
+                      <Link
+                        key={l.id}
+                        href="/leave"
+                        className="block truncate rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] leading-tight text-emerald-900 hover:bg-emerald-200"
+                        title={`${l.user.name || l.user.email}: ${LEAVE_TYPE_LABELS[l.type]}${l.halfDay ? " (half day)" : ""}`}
+                      >
+                        {l.user.name || l.user.email} off
+                      </Link>
+                    ))}
                     {list.slice(0, 4).map((e) => (
                       <Link
                         key={e.id}
@@ -163,6 +188,7 @@ export default async function CalendarPage({
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-kudu-600" /> Job card</span>
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-charcoal-700" /> Customer appointment</span>
             <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-charcoal-100" /> Other / from Google</span>
+            <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-emerald-100" /> On leave</span>
           </div>
         </div>
         {canEdit && (

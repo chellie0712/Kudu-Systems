@@ -4,7 +4,8 @@ import { requireUser } from "@/auth";
 import { can, canAccessJobCard } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { fmtDateTime } from "@/lib/format";
+import { dayKey, fmtDateTime } from "@/lib/format";
+import { LEAVE_TYPE_LABELS } from "@/lib/leave";
 import { fmtDuration } from "@/lib/monitor";
 import { createInvoiceFromJobCard, deleteJobCard, setJobCardStatus } from "@/app/actions/jobCards";
 import { Flash, PageHeader } from "@/components/ui";
@@ -62,6 +63,11 @@ export default async function JobCardPage({
   if (!canAccessJobCard(user, j)) redirect("/no-access?need=jobcards.viewAll");
   const may = (p: Parameters<typeof can>[1]) => can(user, p);
   const onGoogle = j.events.some((e) => e.googleEventId);
+  // Warn when the technician has approved leave on the scheduled day.
+  const jobDay = j.scheduledStart && j.technicianId && !["COMPLETED", "CANCELLED"].includes(j.status) ? new Date(`${dayKey(j.scheduledStart)}T00:00:00Z`) : null;
+  const techLeave = jobDay
+    ? await db.leaveRequest.findFirst({ where: { userId: j.technicianId!, status: "APPROVED", startDate: { lte: jobDay }, endDate: { gte: jobDay } }, include: { user: { select: { name: true, email: true } } } })
+    : null;
   const customStatuses = await db.jobStatus.findMany({
     where: { active: true, id: { not: j.statusId ?? "" }, ...(may("jobcards.assign") ? {} : { stage: { not: "CANCELLED" } }) },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -105,6 +111,12 @@ export default async function JobCardPage({
       />
       <Flash message={msg} />
       <Flash message={err} tone="error" />
+      {techLeave && (
+        <div className="no-print mx-auto mb-4 max-w-3xl rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <b>{techLeave.user.name || techLeave.user.email}</b> is on {LEAVE_TYPE_LABELS[techLeave.type].toLowerCase()}
+          {techLeave.halfDay ? " (half day)" : ""} on the day this job is booked. Reassign it or move the date.
+        </div>
+      )}
 
       <div className="no-print mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-charcoal-500">Mark as:</span>

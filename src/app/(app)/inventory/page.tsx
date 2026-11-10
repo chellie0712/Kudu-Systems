@@ -40,6 +40,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Inventory"
         subtitle={`${items.length} item${items.length === 1 ? "" : "s"} · stock value at cost ${money(Math.round(value), sym)} excl. VAT`}
+        actions={can(user, "purchases.view") ? <Link href="/purchase-orders" className="btn-outline">Purchase orders</Link> : undefined}
       />
       <Flash message={msg} />
       <Flash message={err} tone="error" />
@@ -75,6 +76,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                   <td className={`text-right font-semibold tabular-nums ${i.low || i.total < 0 ? "text-kudu-600" : ""}`}>
                     {fmtQty(i.total)}
                     {i.low && <div className="text-[11px] font-medium">reorder ≤ {fmtQty(i.reorderLevel)}</div>}
+                    {i.low && can(user, "purchases.edit") && <Link href={`/purchase-orders/new?itemId=${i.id}`} className="text-[11px] font-medium text-kudu-600 hover:underline">Order more</Link>}
                   </td>
                   {locations.map((l) => {
                     const q = i.levels.find((x) => x.locationId === l.id)?.quantity ?? 0;

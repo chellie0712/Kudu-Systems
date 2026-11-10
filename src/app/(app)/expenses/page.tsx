@@ -26,7 +26,7 @@ export default async function ExpensesPage({
   const inRange = { gte: p.from, lt: p.to };
   const [settings, expenses, adSpend, editing, knownCategories] = await Promise.all([
     getSettings(),
-    db.expense.findMany({ where: { date: inRange }, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
+    db.expense.findMany({ where: { date: inRange, status: "APPROVED" }, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
     db.adSpend.findMany({ where: { date: inRange, channel: { not: GOOGLE_ADS } }, orderBy: { date: "desc" } }),
     sp.edit ? db.expense.findUnique({ where: { id: sp.edit } }) : null,
     db.expense.groupBy({ by: ["category"] }),
@@ -46,7 +46,12 @@ export default async function ExpensesPage({
       <PageHeader
         title="Expenses"
         subtitle={`Business costs for the profit & loss on the Marketing report. Amounts excl. VAT. ${fmtDate(p.from)} – ${fmtDate(new Date(p.to.getTime() - 1))}`}
-        actions={<Link href={`/marketing?${qs}`} className="btn-outline">Marketing &amp; P&amp;L</Link>}
+        actions={
+          <>
+            <Link href="/claims?view=all" className="btn-outline">Expense claims</Link>
+            <Link href={`/marketing?${qs}`} className="btn-outline">Marketing &amp; P&amp;L</Link>
+          </>
+        }
       />
       <Flash message={sp.msg} />
       <Flash message={sp.err} tone="error" />
@@ -96,7 +101,10 @@ export default async function ExpensesPage({
                   <tr key={e.id}>
                     <td className="whitespace-nowrap">{fmtDate(e.date)}</td>
                     <td>{e.category}</td>
-                    <td>{e.description}</td>
+                    <td>
+                      {e.description}
+                      {e.claimantName && <div className="text-xs text-charcoal-500">Claim by {e.claimantName}{e.reimbursedAt ? ", paid back" : ", not paid back yet"}</div>}
+                    </td>
                     <td>{e.supplier}</td>
                     <td className="text-right tabular-nums">{m(e.amount)}</td>
                     <td className="whitespace-nowrap text-right">

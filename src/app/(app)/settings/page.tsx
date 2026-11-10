@@ -158,18 +158,44 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </div>
         </section>
         <section id="approval">
-          <SectionTitle>Invoice approval</SectionTitle>
+          <SectionTitle>Approvals</SectionTitle>
+          <p className="mb-3 text-sm text-charcoal-500">
+            Who approves: admins, or anyone with a custom role that has the approve permission. Everything waiting shows under{" "}
+            <Link href="/approvals" className="text-kudu-600">Approvals</Link> in the menu. 0 as an amount means “all”.
+          </p>
           <div className="grid gap-4 md:grid-cols-3">
             <label className="flex items-center gap-2 text-sm md:col-span-2">
               <input type="checkbox" name="invoiceApproval" defaultChecked={s.invoiceApproval} className="h-4 w-4 accent-kudu-600" />
-              Invoices must be approved by an admin before they can be marked as sent
+              Invoices must be approved before they can be marked as sent
             </label>
             <Field label={`Only invoices from (${s.currencySymbol}, incl. VAT)`}>
               <input name="invoiceApprovalThreshold" inputMode="decimal" className="input" defaultValue={centsToInput(s.invoiceApprovalThreshold)} />
             </Field>
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input type="checkbox" name="quoteApproval" defaultChecked={s.quoteApproval} className="h-4 w-4 accent-kudu-600" />
+              Quotations must be approved before they can be sent to the customer
+            </label>
+            <Field label={`Only quotations from (${s.currencySymbol}, incl. VAT)`}>
+              <input name="quoteApprovalThreshold" inputMode="decimal" className="input" defaultValue={centsToInput(s.quoteApprovalThreshold)} />
+            </Field>
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input type="checkbox" name="poApproval" defaultChecked={s.poApproval} className="h-4 w-4 accent-kudu-600" />
+              Purchase orders must be approved before they can be ordered
+            </label>
+            <Field label={`Only purchase orders from (${s.currencySymbol}, incl. VAT)`}>
+              <input name="poApprovalThreshold" inputMode="decimal" className="input" defaultValue={centsToInput(s.poApprovalThreshold)} />
+            </Field>
+            <Field label={`Approve expense claims under (${s.currencySymbol}) automatically`}>
+              <input name="claimAutoApprove" inputMode="decimal" className="input" defaultValue={centsToInput(s.claimAutoApprove)} />
+            </Field>
+            <Field label="Annual leave per person (working days a year)">
+              <input name="annualLeaveDays" inputMode="decimal" className="input" defaultValue={s.annualLeaveDays} />
+            </Field>
+            {text("poPrefix", "Purchase order prefix")}
           </div>
           <p className="mt-2 text-xs text-charcoal-500">
-            0 means every invoice. Office staff press “Submit for approval”; admins approve or send it back with a reason. If the total changes after approval, it needs approving again.
+            Staff press “Submit for approval”; the approver approves or sends it back with a reason. If a total changes after approval, it needs approving again.
+            Expense claims and leave always need approval (except claims under the amount above). Nobody approves their own claim or leave, except an admin.
           </p>
         </section>
         <section id="labour">

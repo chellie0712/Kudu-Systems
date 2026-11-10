@@ -10,7 +10,12 @@ import {
   createJobCardFromQuotation,
   deleteQuotation,
   setQuotationStatus,
+  requestQuoteApproval,
+  approveQuote,
+  rejectQuote,
 } from "@/app/actions/quotations";
+import { maySend, quoteApprovalState } from "@/lib/approval";
+import { ApprovalPanel } from "@/components/Approvals";
 import { Flash, PageHeader, StatusBadge } from "@/components/ui";
 import { QuotationSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
@@ -42,6 +47,8 @@ export default async function QuotationPage({
     getSettings(),
   ]);
   if (!q) notFound();
+  const approval = quoteApprovalState(q, settings);
+  const blocked = q.status === "DRAFT" && !maySend(approval);
 
   return (
     <div>
@@ -73,10 +80,21 @@ export default async function QuotationPage({
         </div>
       )}
 
+      {q.status === "DRAFT" && (
+        <ApprovalPanel
+          state={approval}
+          doc={q}
+          canApprove={can(user, "quotations.approve")}
+          canRequest={can(user, "quotations.edit")}
+          actions={{ request: requestQuoteApproval, approve: approveQuote, reject: rejectQuote }}
+          ready="It can now be sent to the customer."
+        />
+      )}
+
       <div className="no-print mb-4 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-charcoal-500">Mark as:</span>
         {(["SENT", "ACCEPTED", "DECLINED", "EXPIRED"] as const)
-          .filter((s) => s !== q.status)
+          .filter((s) => s !== q.status && !(blocked && (s === "SENT" || s === "ACCEPTED")))
           .map((s) => (
             <form key={s} action={setQuotationStatus}>
               <input type="hidden" name="id" value={q.id} />

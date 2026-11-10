@@ -140,9 +140,29 @@ Limits are in **Settings → Job statuses**: days in one status before a job is 
 
 **Labour billing** (Settings → Labour billing): a company hourly rate excl. VAT, the invoice line wording, and rounding (time is rounded up per person, default 15 minutes; 0 bills exact minutes). A person can have their own rate in Settings → Users & roles. "Create invoice" on a job card now adds the unbilled time as labour lines (one per rate) after the quotation's lines, and marks that time billed. Time recorded later can be added to the job's draft invoice with "Add labour to draft invoice". Deleting an invoice makes its time unbilled again.
 
-## Invoice approval
+## Approvals
 
-Off by default. Switch it on in **Settings → Invoice approval**, optionally only for invoices from a set total (incl. VAT; 0 = every invoice). While an invoice needs approval it cannot be marked as sent (the button is hidden and the server refuses). Office staff press **Submit for approval**; admins see a banner on the dashboard and the **AWAITING APPROVAL** invoice filter, then **Approve** or **Send back** with a reason, which the office sees on the invoice. If the total changes after approval, it needs approving again (an already-sent invoice stays sent, but shows up for the admin to re-approve). Payments can be recorded at any time.
+**Approvals** (menu, for anyone who approves something) lists everything waiting for you, oldest first: quotations, invoices, purchase orders, expense claims and leave requests, each with **Approve** or **Send back / Reject / Decline** with a reason. The menu shows how many are waiting and the dashboard has a banner. Who approves: admins by default; a custom role can be given any of the approve permissions (Settings → Roles). Approval is in-app only, there is no email.
+
+Settings → **Approvals** (0 as an amount means "all"):
+- **Invoices** (off by default), optionally only from a set total incl. VAT. While an invoice needs approval it cannot be marked as sent (the button is hidden and the server refuses). Office staff press **Submit for approval**; the approver approves or sends it back with a reason, which the office sees on the invoice. If the total changes after approval, it needs approving again (an already-sent invoice stays sent, but shows up to re-approve). Payments can be recorded at any time. The **AWAITING APPROVAL** filter on Invoices still works.
+- **Quotations** (off by default), the same way: a quotation that needs approval stays a draft and can't be marked Sent or Accepted (and so is not shown in the customer portal) until approved. A changed total needs approving again.
+- **Purchase orders** (on by default), the same way: a purchase order can't be marked as ordered until approved.
+- **Expense claims** always need approval, except claims under the auto-approve amount.
+- **Leave** always needs approval. **Annual leave per person** (default 15 working days, the BCEA minimum) drives the "left this year" figure.
+- Nobody approves their own expense claim or leave, except a built-in Admin (so a company with one admin still works).
+
+### Expense claims
+
+**Expense claims** (menu, everyone) is for money staff paid out of their own pocket: date, category, what for, where, the amount paid and whether the slip includes VAT, plus a photo of the slip (taken with the phone camera; it is shrunk before upload). A claim can be changed or withdrawn until it is approved; a rejected claim shows the reason and can be changed and resubmitted. Approved claims become expenses (excl. VAT) in the profit & loss on their date, show on the Expenses page with the claimant's name, and are listed under "Approved, not paid back" until someone marks them **paid back**. Approvers see everyone's claims and the total owed to staff.
+
+### Purchase orders
+
+**Purchase orders** (menu, office and admins): order from a supplier with lines picked from your stock items (price defaults to the item's cost price) or typed in for things you don't stock, VAT and a delivery location. Numbers are `PO-0001` (prefix in Settings → Approvals). Draft → submit for approval → approved → **Mark as ordered** → **Book in a delivery**: enter how many of each line arrived and where they go; stock items are received into that location (same as Inventory → Receive, noted with the PO number) and the order's price becomes the item's cost price. Part deliveries are fine; the order shows Partly received until everything is in. The purchase order prints as a clean page to email or hand to the supplier (Print / Save PDF). Low-stock items on Inventory have an **Order more** link. A received order can't be deleted, only cancelled.
+
+### Leave
+
+**Leave** (menu, everyone): request annual, sick, family responsibility, study, unpaid or other leave for a range of days or a half day. Days are counted as working days (Monday to Friday) without South African public holidays (including Good Friday, Family Day and Sunday holidays moved to Monday). You see your annual leave left this year, sick and family leave taken, and the next public holidays. You can cancel a request, or approved leave that has not started. Office and admins see who is off in the next 90 days and leave taken per person this year. An approver can also record leave for someone else (e.g. a sick day phoned in), which is approved straight away. Approved leave and public holidays show on the **Calendar**, and a job card warns when its technician is on leave on the booked day.
 
 ## Inventory and van stock
 
