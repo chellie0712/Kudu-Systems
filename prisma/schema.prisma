@@ -234,6 +234,7 @@ model Customer {
   queries         Query[]
   tasks           Task[]
   formSubmissions FormSubmission[]
+  documents       GeneratedDoc[]
   portalUsers     PortalUser[] // the customer's logins to the customer portal
   leadSource      String          @default("") // how they found us, e.g. "Google Ads" (see src/lib/marketing.ts)
   leadCampaign    String          @default("") // the ad campaign, matched to AdSpend.campaign
@@ -312,6 +313,7 @@ model Quotation {
   approvedBy          String    @default("")
   approvalNote        String    @default("") // reason given when sent back
   tasks       Task[]
+  documents   GeneratedDoc[]
   // Answer given by the customer in the customer portal
   response     String          @default("") // "ACCEPTED" or "DECLINED"
   respondedAt  DateTime?
@@ -390,6 +392,7 @@ model JobCard {
   assetChecks           AssetCheck[]
   queries               Query[] // queries this job card was raised for (e.g. a re-service)
   formSubmissions       FormSubmission[]
+  documents             GeneratedDoc[]
   customerRating        Int? // 1-5 stars given by the client at sign-off
   customerFeedback      String          @default("") // the client's comment at sign-off
   invoices              Invoice[]
@@ -631,6 +634,7 @@ model Invoice {
   timeEntries TimeEntry[] // labour billed on this invoice
   stockMovements      StockMovement[] // materials billed on this invoice
   tasks               Task[]
+  documents           GeneratedDoc[]
   acctLink        String    @default("") // "provider:organisation" the acctId belongs to
   acctId          String? // the invoice's ID in the accounting package, once sent (or exported)
   acctNumber      String    @default("")
@@ -1267,4 +1271,57 @@ model WorkflowRun {
   @@index([status, runAt])
   @@index([workflowId, createdAt])
   @@index([workflowId, subjectId])
+}
+
+// ---------- Document templates ----------
+
+/// A company's own document (certificate, agreement, letter...) with merge fields; see src/lib/documents.
+model DocTemplate {
+  id           String         @id @default(cuid())
+  name         String
+  appliesTo    String // "customer" | "quote" | "job" | "invoice": what it is filled in from
+  title        String         @default("") // big heading printed on the document
+  body         String         @db.Text // text with {{merge.fields}} and [[blocks]]
+  prefix       String         @default("DOC-")
+  nextNo       Int            @default(1)
+  showInPortal Boolean        @default(true) // customers see it in the customer portal
+  letterhead   Boolean        @default(true) // print the company logo and details at the top
+  active       Boolean        @default(true)
+  createdBy    String         @default("")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  documents    GeneratedDoc[]
+}
+
+/// A document made from a template. The text is merged when it is made, so it never changes afterwards.
+model GeneratedDoc {
+  id              String       @id @default(cuid())
+  number          String       @unique
+  templateId      String?
+  template        DocTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  name            String // the template's name at the time
+  title           String       @default("")
+  body            String       @db.Text // merged text
+  items           Json         @default("[]") // line items for [[items]], copied at the time
+  letterhead      Boolean      @default(true)
+  showInPortal    Boolean      @default(true)
+  customerId      String
+  customer        Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  jobCardId       String?
+  jobCard         JobCard?     @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  quotationId     String?
+  quotation       Quotation?   @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  invoiceId       String?
+  invoice         Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  companySignature String?     @db.Text // PNG data URL copied from Settings.pcoSignature
+  companySigner   String       @default("") // name printed under the company signature
+  clientSignature String?      @db.Text // PNG data URL, signed on screen
+  clientSignedName String      @default("")
+  clientSignedAt  DateTime?
+  createdById     String?
+  createdBy       String       @default("")
+  createdAt       DateTime     @default(now())
+
+  @@index([customerId])
+  @@index([jobCardId])
 }

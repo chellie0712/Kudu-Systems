@@ -429,6 +429,14 @@ async function doAction(db: PrismaClient, wf: Workflow, a: WorkflowAction, ctx: 
       const jc = await jobCardFromQuote(db, ctx.id, by);
       return { action: label, ok: true, message: `${jc.number} created`, link: `/job-cards/${jc.id}` };
     }
+    case "makeDoc": {
+      const t = await db.docTemplate.findFirst({ where: { id: a.templateId, active: true }, select: { appliesTo: true, name: true } });
+      if (!t) throw new Error("The document template is missing or switched off");
+      if (t.appliesTo !== ctx.subject) throw new Error(`“${t.name}” is made from a different kind of record`);
+      const { generateDocument } = await import("@/lib/documents/data");
+      const doc = await generateDocument(db, a.templateId, ctx.id, { name: by });
+      return { action: label, ok: true, message: `${doc.name} ${doc.number} made`, link: `/documents/${doc.id}` };
+    }
     case "invoiceFromJob": {
       subjectOnly("job");
       const existing = await db.invoice.findFirst({ where: { jobCardId: ctx.id, status: { not: "CANCELLED" } }, select: { id: true, number: true } });

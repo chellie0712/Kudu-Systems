@@ -88,7 +88,8 @@ export const QUERY_STATUSES = { OPEN: "Open", IN_PROGRESS: "In progress", WAITIN
 
 export type FieldKind = "text" | "money" | "number" | "choice";
 /** Options for choice fields; "dynamic:<list>" lists come from the company's data (see BuilderLists). */
-export type FieldDef = { label: string; kind: FieldKind; subjects: Subject[] | "all"; options?: Record<string, string> | `dynamic:${keyof BuilderLists}` };
+export type FieldDef = { label: string; kind: FieldKind; subjects: Subject[] | "all"; options?: Record<string, string> | `dynamic:${ChoiceList}` };
+type ChoiceList = "users" | "mailboxes" | "branches" | "jobStatuses" | "forms";
 
 export const FIELDS: Record<string, FieldDef> = {
   "customer.type": { label: "Customer type", kind: "choice", subjects: "all", options: { BUSINESS: "Business", INDIVIDUAL: "Individual" } },
@@ -147,6 +148,7 @@ export const ACTIONS = {
   quoteStatus: { label: "Change the quotation's status", subjects: ["quote"] },
   jobFromQuote: { label: "Create a job card from the quotation", subjects: ["quote"], help: "Once per quotation. The job card is left without a date or technician for the office to book." },
   invoiceFromJob: { label: "Create a draft invoice from the job card", subjects: ["job"], help: "Once per job card. Copies the quotation lines and unbilled labour; somebody checks it before sending." },
+  makeDoc: { label: "Make a document from a template", subjects: ["customer", "quote", "job", "invoice"], help: "For example a certificate of treatment when the client signs off. Templates are under Documents → Templates." },
 } satisfies Record<string, ActionDef>;
 
 export type ActionType = keyof typeof ACTIONS;
@@ -206,6 +208,7 @@ const actionSchema = z.object({
   from: z.string().max(60).default(""), // email: user id whose mailbox sends it
   to: z.string().max(60).default("customer"), // EMAIL_TO key, or "user:<id>"
   status: z.string().max(60).default(""), // jobStatus / quoteStatus
+  templateId: z.string().max(60).default(""), // makeDoc
 });
 export type WorkflowAction = z.infer<typeof actionSchema>;
 
@@ -229,6 +232,7 @@ export type BuilderLists = {
   branches: Record<string, string>;
   jobStatuses: Record<string, string>; // "SCHEDULED" etc. and "custom:<id>"
   forms: Record<string, string>;
+  templates: Record<string, { name: string; subject: string }>; // document templates
 };
 
 /** Plain-language summary for lists, e.g. "When a quotation's status changes to Accepted". */
