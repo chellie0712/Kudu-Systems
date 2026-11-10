@@ -3,6 +3,7 @@ import type { TenantDb } from "@/lib/db";
 import { incompleteRequired, parseItems } from "@/lib/checklists";
 import { syncJobCardEvent } from "@/lib/jobCardCalendar";
 import { logStatusChange } from "@/lib/statusLog";
+import { emit } from "@/lib/workflows/events";
 
 export type SignOffInput = { name: string; signature: string; confirmed: boolean; rating?: number | null; feedback?: string };
 
@@ -44,4 +45,5 @@ export async function applySignOff(db: TenantDb, jc: Pick<JobCard, "id" | "jobDa
   // The job is finished, so nobody is still working on it.
   await db.timeEntry.updateMany({ where: { jobCardId: jc.id, end: null }, data: { end: now } });
   await syncJobCardEvent(jc.id);
+  await emit(db, "job.signedOff", jc.id);
 }

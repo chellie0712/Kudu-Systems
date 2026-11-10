@@ -1214,3 +1214,57 @@ model AssignmentRule {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
+
+// ---------- Workflows (automations) ----------
+
+/// "When this happens, if these hold, do these things." Built in Workflows; see src/lib/workflows.
+model Workflow {
+  id            String        @id @default(cuid())
+  name          String
+  description   String        @default("")
+  active        Boolean       @default(false)
+  activeSince   DateTime? // timed triggers only pick up what reaches the point after this
+  trigger       String // a key of TRIGGERS in src/lib/workflows/defs.ts
+  triggerConfig Json          @default("{}") // status to match, form, or number of days
+  conditions    Json          @default("[]")
+  waitMinutes   Int           @default(0) // wait this long before acting; conditions are checked again then
+  oncePer       Boolean       @default(false) // at most once for each customer/quotation/job card... it runs for
+  actions       Json          @default("[]")
+  runCount      Int           @default(0)
+  lastRunAt     DateTime?
+  createdBy     String        @default("")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  runs          WorkflowRun[]
+}
+
+enum WorkflowRunStatus {
+  WAITING // waiting out the delay
+  RUNNING
+  DONE
+  FAILED // one or more actions failed
+  SKIPPED // the conditions did not hold
+  CANCELLED
+}
+
+/// One time a workflow was triggered, and what it did.
+model WorkflowRun {
+  id         String            @id @default(cuid())
+  workflowId String
+  workflow   Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  subjectId  String // the customer, quotation, job card... it ran for
+  label      String            @default("") // e.g. "JC-0001 · Acme Foods"
+  link       String            @default("") // path in Kudu
+  status     WorkflowRunStatus
+  runAt      DateTime? // when a waiting run is due
+  depth      Int               @default(0) // workflows started by other workflows; stops loops
+  log        Json              @default("[]") // what each action did
+  dedupeKey  String? // timed triggers: one run per job/quote... per workflow
+  createdAt  DateTime          @default(now())
+  finishedAt DateTime?
+
+  @@unique([workflowId, dedupeKey])
+  @@index([status, runAt])
+  @@index([workflowId, createdAt])
+  @@index([workflowId, subjectId])
+}

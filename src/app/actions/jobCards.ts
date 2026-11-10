@@ -8,16 +8,14 @@ import { can, canAccessJobCard } from "@/lib/permissions";
 import { tenantDb } from "@/lib/db";
 import { optDate, parseJson, str } from "@/lib/form";
 import { getSettings, nextNumber } from "@/lib/settings";
-import { addDays } from "@/lib/format";
 import { contactForDoc } from "@/lib/contacts";
 import { logStatusChange } from "@/lib/statusLog";
 import { syncJobCardEvent } from "@/lib/jobCardCalendar";
 import { applySignOff, signOffProblems } from "@/lib/signoff";
+import { invoiceFromJobCard } from "@/lib/conversions";
 import { deleteGoogleEvent } from "@/lib/google";
 import type { PhotoRef } from "@/components/JobCardEditors";
 import { CUSTOM_PREFIX } from "@/lib/jobStatus";
-import { labourLines, unbilled } from "@/lib/labour";
-import { computeTotals } from "@/lib/totals";
 import { autoApplies, incompleteRequired, itemsFromTemplate, parseChecklists, parseItems, type ChecklistInput } from "@/lib/checklists";
 
 /** A status value from a form: a stage ("COMPLETED") or a custom status ("custom:<id>"). */
@@ -219,46 +217,12 @@ export async function createInvoiceFromJobCard(fd: FormData) {
   const db = await tenantDb();
   await requirePermission("invoices.edit");
   const settings = await getSettings();
-  const jc = await db.jobCard.findUniqueOrThrow({
-    where: { id: str(fd, "id") },
-    include: { quotation: { include: { items: { orderBy: { sortOrder: "asc" } } } }, timeEntries: true },
-  });
-  const q = jc.quotation;
-  const open = unbilled(jc.timeEntries);
-  const users = await db.user.findMany({
-    where: { id: { in: open.map((e) => e.userId).filter((x): x is string => !!x) } },
-    select: { id: true, labourRate: true },
-  });
-  const labour = labourLines(open, users, settings);
-  const items = [
-    ...(q?.items ?? []).map((i) => ({ description: i.description, quantity: i.quantity, unit: i.unit, unitPrice: i.unitPrice })),
-    ...labour,
-  ];
-  const vatRate = q?.vatRate ?? settings.vatRate;
-  const discount = q?.discount ?? 0;
-  const now = new Date();
-  const inv = await db.invoice.create({
-    data: {
-      number: await nextNumber("invoice"),
-      customerId: jc.customerId,
-      contactId: jc.contactId ?? q?.contactId ?? (await contactForDoc(db, jc.customerId, "")),
-      jobCardId: jc.id,
-      quotationId: q?.id ?? null,
-      issueDate: now,
-      dueDate: addDays(now, settings.invoiceDueDays),
-      reference: [q?.number, jc.number].filter(Boolean).join(" / "),
-      terms: settings.invoiceTerms,
-      vatRate,
-      discount,
-      ...computeTotals(items, vatRate, discount),
-      items: items.length ? { create: items.map((i, n) => ({ ...i, sortOrder: n })) } : undefined,
-    },
-  });
-  if (open.length) await db.timeEntry.updateMany({ where: { id: { in: open.map((e) => e.id) } }, data: { invoiceId: inv.id } });
+  const jc = await db.jobCard.findUniqueOrThrow({ where: { id: str(fd, "id") }, select: { id: true, number: true } });
+  const { invoice: inv, itemCount, withLabour } = await invoiceFromJobCard(db, jc.id, settings);
   revalidatePath("/invoices");
-  const labourNote = labour.length ? "+with+labour" : "";
+  const labourNote = withLabour ? "+with+labour" : "";
   redirect(
-    items.length
+    itemCount
       ? `/invoices/${inv.id}?msg=Invoice+created+from+${jc.number}${labourNote}`
       : `/invoices/${inv.id}/edit?msg=Invoice+created.+Add+the+line+items.`,
   );

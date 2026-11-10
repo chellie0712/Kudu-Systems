@@ -69,6 +69,7 @@ const RULES = {
   "forms.view": STAFF, // see everyone's form submissions, including web forms
   "forms.manage": ADMIN, // build forms and publish web forms
   "forms.delete": ADMIN, // delete forms and submissions
+  "workflows.manage": ADMIN, // build automatic workflows and see what they did
   "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
   "profit.view": ADMIN, // profit & loss (includes wages and other expenses)
   "expenses.manage": ADMIN, // record business expenses for the profit & loss
@@ -154,6 +155,7 @@ export const PERMISSION_INFO: Record<Permission, { group: string; label: string;
   "forms.view": { group: "Forms", label: "See all form submissions, including web forms" },
   "forms.manage": { group: "Forms", label: "Build forms and publish web forms" },
   "forms.delete": { group: "Forms", label: "Delete forms and submissions" },
+  "workflows.manage": { group: "Administration", label: "Build workflows (automations)", help: "Workflows act for the whole company: they create tasks, change statuses and can send emails." },
   "quotations.view": { group: "Quotations", label: "See quotations" },
   "quotations.edit": { group: "Quotations", label: "Create and edit quotations" },
   "quotations.delete": { group: "Quotations", label: "Delete quotations" },
@@ -217,6 +219,7 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Forms: fill in", permission: "forms.fill" },
   { label: "Forms: see all submissions and web forms", permission: "forms.view", note: { TECHNICIAN: "Own only" } },
   { label: "Forms: build and publish", permission: "forms.manage" },
+  { label: "Workflows (automations)", permission: "workflows.manage" },
   { label: "Reports and cashflow", permission: "reports.view" },
   { label: "Email campaigns to customers (from own mailbox)", permission: "campaigns.send" },
   { label: "Invoices and payments", permission: "invoices.edit" },

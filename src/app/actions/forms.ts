@@ -13,6 +13,7 @@ import { clientForCompany } from "@/lib/tenant";
 import { newFieldId, parseFields, readAnswers, slugify, summaryOf, TEMPLATES } from "@/lib/forms";
 import { ipHash, processWebSubmission, stampOk } from "@/lib/webforms";
 import type { FormResult } from "@/components/FormRenderer";
+import { emit } from "@/lib/workflows/events";
 
 const go = (path: string, kind: "msg" | "err", text: string): never =>
   redirect(`${path}${path.includes("?") ? "&" : "?"}${kind}=${encodeURIComponent(text)}`);
@@ -124,6 +125,7 @@ export async function submitForm(fd: FormData): Promise<FormResult> {
       reviewedBy: user.name,
     },
   });
+  await emit(db, "form.submitted", s.id, { formId: form.id });
   revalidatePath("/forms");
   redirect(`/forms/submissions/${s.id}?msg=${encodeURIComponent(`${form.name} saved`)}`);
 }
@@ -148,9 +150,10 @@ export async function submitWebForm(fd: FormData): Promise<FormResult> {
   const { answers, errors } = readAnswers(fields, fd);
   if (Object.keys(errors).length) return { errors };
   const links = await processWebSubmission(db, form, fields, answers);
-  await db.formSubmission.create({
+  const sub = await db.formSubmission.create({
     data: { formId: form.id, data: answers, summary: summaryOf(fields, answers), source: "web", submittedBy: "Website", ipHash: ip, ...links },
   });
+  await emit(db, "form.submitted", sub.id, { formId: form.id });
   redirect(done);
 }
 

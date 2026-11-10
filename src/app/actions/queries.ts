@@ -11,6 +11,7 @@ import { nextNumber } from "@/lib/settings";
 import { jobCardContactFields, primaryContact } from "@/lib/contacts";
 import { logStatusChange } from "@/lib/statusLog";
 import { PRIORITY_LABELS, QUERY_STATUS_LABELS } from "@/lib/queries";
+import { emit } from "@/lib/workflows/events";
 
 const go = (path: string, kind: "msg" | "err", text: string): never =>
   redirect(`${path}${path.includes("?") ? "&" : "?"}${kind}=${encodeURIComponent(text)}`);
@@ -55,6 +56,7 @@ export async function createQuery(fd: FormData) {
       notes: { create: { text: "Query logged", system: true, userName: user.name } },
     },
   });
+  await emit(db, "query.created", q.id);
   revalidatePath("/queries");
   redirect(`/queries/${q.id}?msg=Query+${q.number}+logged`);
 }
@@ -125,6 +127,7 @@ export async function setQueryStatus(fd: FormData) {
       notes: { create: notes },
     },
   });
+  if (status !== q.status) await emit(db, "query.status", id, { status });
   revalidatePath(path);
   revalidatePath("/queries");
   go(path, "msg", closing ? "Query resolved" : `Status set to ${QUERY_STATUS_LABELS[status]}`);

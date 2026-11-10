@@ -7,6 +7,7 @@ import { requirePermission } from "@/auth";
 import { tenantDb, type TenantDb } from "@/lib/db";
 import { str } from "@/lib/form";
 import { ensurePrimary } from "@/lib/contacts";
+import { emit } from "@/lib/workflows/events";
 
 async function validBranch(db: TenantDb, id: string): Promise<string | null> {
   if (!id) return null;
@@ -41,6 +42,7 @@ export async function saveCustomer(fd: FormData) {
     await ensurePrimary(tx, c.id);
     return c;
   });
+  if (!id) await emit(db, "customer.created", customer.id);
   revalidatePath("/customers");
   redirect(`/customers/${customer.id}?msg=Customer+saved`);
 }

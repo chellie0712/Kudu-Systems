@@ -13,12 +13,15 @@ import { currentBranchId, getBranches } from "@/lib/branch";
 import { OPEN_STATUSES, overdueBefore } from "@/lib/queries";
 import { openJobs as monitorJobs } from "@/lib/monitor";
 import { escalateOverdue, myTaskCounts } from "@/lib/tasks";
+import { processDue } from "@/lib/workflows/engine";
 import { approvalCount, approvesAnything } from "@/lib/approvalInbox";
 
 /** My open tasks, red when any are overdue, plus overdue tasks escalated to me. Escalates on load. */
 async function TasksBanner({ db, user }: { db: TenantDb; user: AppUser }) {
   if (!can(user, "tasks.view")) return null;
   await escalateOverdue(db, await getSettings());
+  // Workflows waiting out a delay that is now over (the daily job does this too).
+  await processDue(db).catch(() => 0);
   const t = await myTaskCounts(db, user);
   return (
     <>

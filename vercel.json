@@ -3,6 +3,7 @@
     { "path": "/api/cron/google-ads", "schedule": "0 4 * * *" },
     { "path": "/api/cron/accounting", "schedule": "30 4 * * *" },
     { "path": "/api/cron/email", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/tasks", "schedule": "0 5 * * *" }
+    { "path": "/api/cron/tasks", "schedule": "0 5 * * *" },
+    { "path": "/api/cron/workflows", "schedule": "30 5 * * *" }
   ]
 }
