@@ -20,6 +20,8 @@ import { contactLabel } from "@/lib/contacts";
 import { currentCompany } from "@/lib/db";
 import { setEmailConsent } from "@/app/actions/email";
 import { CONSENT_HELP, CONSENT_LABELS } from "@/lib/email/audience";
+import { TaskTable } from "@/components/Tasks";
+import { isOpenTask, TASK_ORDER, TASK_ROW_INCLUDE, taskScope } from "@/lib/tasks";
 
 const tabs = [
   { key: "info", label: "Information" },
@@ -30,6 +32,7 @@ const tabs = [
   { key: "calendar", label: "Calendar" },
   { key: "assets", label: "Assets" },
   { key: "queries", label: "Queries" },
+  { key: "tasks", label: "Tasks" },
   { key: "portal", label: "Portal" },
 ];
 
@@ -66,6 +69,9 @@ export default async function CustomerPage({
     },
   });
   if (!customer) notFound();
+  const tasks = can(user, "tasks.view")
+    ? await db.task.findMany({ where: { AND: [{ customerId: id }, taskScope(user)] }, include: TASK_ROW_INCLUDE, orderBy: TASK_ORDER, take: 200 })
+    : [];
   const sym = settings.currencySymbol;
   const live = customer.invoices.filter((i) => i.status !== "CANCELLED" && i.status !== "DRAFT");
   const invoiced = live.reduce((s, i) => s + i.total, 0);
@@ -82,9 +88,10 @@ export default async function CustomerPage({
     calendar: upcoming.length,
     assets: customer.assets.filter((a) => a.active).length,
     queries: customer.queries.filter((q) => isOpen(q.status)).length,
+    tasks: tasks.filter((t) => isOpenTask(t.status)).length,
     portal: customer.portalUsers.filter((u) => !u.disabled && u.passwordHash).length,
   };
-  const visibleTabs = tabs.filter((t) => t.key !== "portal" || can(user, "portal.manage"));
+  const visibleTabs = tabs.filter((t) => (t.key !== "portal" || can(user, "portal.manage")) && (t.key !== "tasks" || can(user, "tasks.view")));
 
   return (
     <div>
@@ -280,6 +287,18 @@ export default async function CustomerPage({
           )}
           <div className="card overflow-x-auto">
             {can(user, "queries.view") ? <QueryTable rows={customer.queries} showCustomer={false} /> : <Empty>You don&apos;t have access to queries.</Empty>}
+          </div>
+        </div>
+      )}
+      {tab === "tasks" && can(user, "tasks.view") && (
+        <div className="space-y-3">
+          {can(user, "tasks.edit") && (
+            <div className="text-right">
+              <Link href={`/tasks/new?customerId=${id}&returnTo=${encodeURIComponent(`/customers/${id}?tab=tasks`)}`} className="btn-primary">+ Task</Link>
+            </div>
+          )}
+          <div className="card overflow-x-auto">
+            <TaskTable rows={[...tasks.filter((t) => isOpenTask(t.status)), ...tasks.filter((t) => !isOpenTask(t.status))]} returnTo={`/customers/${id}?tab=tasks`} doneButton={can(user, "tasks.edit")} />
           </div>
         </div>
       )}

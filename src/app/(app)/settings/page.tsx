@@ -307,6 +307,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
+      <div id="tasks" className="card mt-6 flex flex-wrap items-center justify-between gap-3 p-6">
+        <div>
+          <SectionTitle>Tasks</SectionTitle>
+          <p className="text-sm text-charcoal-500">
+            Who new tasks go to automatically (one person, take turns, or whoever has the fewest open tasks), and when overdue tasks are escalated.
+          </p>
+        </div>
+        <Link href="/settings/tasks" className="btn-outline">Task rules &amp; escalation</Link>
+      </div>
+
       <div id="statuses" className="card mt-6 p-6">
         <SectionTitle>Job statuses</SectionTitle>
         <p className="mb-3 text-sm text-charcoal-500">

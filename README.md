@@ -176,6 +176,23 @@ Off by default. Switch it on in **Settings → Invoice approval**, optionally on
 - Customers have a **Queries** tab, job cards show their queries with a "+ Log query" link, and the dashboard shows open, overdue and your queries. Queries follow the branch switcher.
 - Only admins can delete a query.
 
+## Tasks, auto-assignment and escalation
+
+**Tasks** (menu, everyone) is work for one person with a deadline, e.g. "Call Thandi about the follow-up visit". Each task gets a number (`TSK-0001`), a title, details, a type (Follow-up call, Chase payment, Site visit…, or your own), a priority (Low to Urgent), a deadline (date and time), the person it is for, and optionally the customer, job card, quotation, invoice or query it is about.
+
+- **Where to add one:** Tasks → New task, or "+ Task" on a customer's Tasks tab, a job card, quotation, invoice or query. Those pages list their open tasks.
+- **Views:** My tasks, I gave out, Everyone's open, Overdue, Escalated, Nobody assigned and Done, with search and a status filter. "✓ Done" closes a task in one click. Each task has a timeline of notes and every change (status, deadline, reassignment, escalation) with who and when.
+- **Who sees what:** Admins and office see and assign everyone's tasks. Technicians see the tasks given to them, the ones they created and the ones escalated to them, and can only give tasks to themselves (or let the rules choose). Only admins delete tasks. Custom roles have the same five task permissions to tick (existing custom roles were given "see and work on own tasks", and office-based ones also "see everyone's" and "give tasks to others").
+- The menu shows your open task count, in red when one is overdue or escalated to you. The dashboard shows the same.
+
+**Auto-assignment** (Settings → Tasks): when a task is added with "Assign to: Automatically", the first active rule that matches its type and priority (blank = any) picks the person:
+- *Always this person*: one named user.
+- *Take turns*: round the active users of a role (built-in or custom) in name order.
+- *Fewest open tasks*: whoever in the role has the fewest tasks still to do.
+- Optionally only users from the customer's branch. If no rule matches or nobody is available, the task is left with nobody and shows under "Nobody assigned". Rules run in the order shown; the assignment note on the task names the rule.
+
+**Escalation** (Settings → Tasks): an open task more than *N* hours past its deadline (default 24, 0 = off) is escalated once: it gets an "Escalated" label and a note, and shows on the dashboard and under Escalated for the chosen person (or, if none is chosen, for everyone who sees all tasks). Optionally the task is also handed to that person. Kudu checks when Tasks or the dashboard is opened and every day at 05:00 UTC (`/api/cron/tasks`, protected by `CRON_SECRET`). Escalation is in-app only, there is no email or SMS. Setting a new deadline in the future clears the escalation.
+
 ## Reports and cashflow
 
 **Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.

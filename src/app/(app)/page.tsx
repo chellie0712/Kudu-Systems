@@ -12,6 +12,32 @@ import { stockOverview } from "@/lib/inventory";
 import { currentBranchId, getBranches } from "@/lib/branch";
 import { OPEN_STATUSES, overdueBefore } from "@/lib/queries";
 import { openJobs as monitorJobs } from "@/lib/monitor";
+import { escalateOverdue, myTaskCounts } from "@/lib/tasks";
+
+/** My open tasks, red when any are overdue, plus overdue tasks escalated to me. Escalates on load. */
+async function TasksBanner({ db, user }: { db: TenantDb; user: AppUser }) {
+  if (!can(user, "tasks.view")) return null;
+  await escalateOverdue(db, await getSettings());
+  const t = await myTaskCounts(db, user);
+  return (
+    <>
+      {t.escalated > 0 && (
+        <Link href="/tasks?view=escalated" className="mb-4 block rounded-md border border-kudu-200 bg-kudu-50 p-3 text-sm font-medium text-kudu-800 hover:bg-kudu-100">
+          {t.escalated} overdue task{t.escalated === 1 ? " was" : "s were"} escalated to you →
+        </Link>
+      )}
+      {t.open > 0 && (
+        <Link
+          href={t.overdue ? "/tasks?view=overdue" : "/tasks"}
+          className={`mb-4 block rounded-md border p-3 text-sm font-medium ${t.overdue ? "border-kudu-200 bg-kudu-50 text-kudu-800 hover:bg-kudu-100" : "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100"}`}
+        >
+          You have {t.open} open task{t.open === 1 ? "" : "s"}
+          {t.overdue ? `, ${t.overdue} overdue` : ""} →
+        </Link>
+      )}
+    </>
+  );
+}
 
 export default async function Dashboard() {
   const db = await tenantDb();
@@ -93,6 +119,7 @@ export default async function Dashboard() {
           {awaitingApproval} invoice{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
         </Link>
       )}
+      <TasksBanner db={db} user={user} />
       {stuckJobs > 0 && (
         <Link href="/monitor#stuck" className="mb-4 block rounded-md border border-kudu-200 bg-kudu-50 p-3 text-sm font-medium text-kudu-800 hover:bg-kudu-100">
           {stuckJobs} job{stuckJobs === 1 ? " looks" : "s look"} stuck. See the process monitor →
@@ -215,6 +242,7 @@ async function TechnicianHome({ user, db }: { user: AppUser; db: TenantDb }) {
         subtitle={fmtDate(now)}
         actions={<Link href="/calendar" className="btn-outline">My calendar</Link>}
       />
+      <TasksBanner db={db} user={user} />
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Link href="/job-cards" className="card border-l-4 border-l-kudu-600 p-5 hover:shadow-md">
           <div className="text-xs font-semibold uppercase tracking-wide text-charcoal-500">My open jobs</div>

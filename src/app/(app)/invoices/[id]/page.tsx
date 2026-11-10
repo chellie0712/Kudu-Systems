@@ -16,6 +16,8 @@ import { linkKey } from "@/lib/accounting/store";
 import { linkReady } from "@/lib/accounting/sync";
 import { checkAccountingPayments, sendInvoiceToAccountingNow } from "@/app/actions/accounting";
 
+import { LinkedTasks } from "@/components/Tasks";
+
 export default async function InvoicePage({
   params,
   searchParams,
@@ -181,6 +183,7 @@ export default async function InvoicePage({
         <InvoiceSheet inv={inv} settings={settings} />
 
         <aside className="no-print space-y-6">
+          <LinkedTasks db={db} user={user} link={{ invoiceId: inv.id }} returnTo={`/invoices/${inv.id}`} />
           <div className="card p-5">
             <SectionTitle>Payments</SectionTitle>
             {inv.payments.length === 0 ? (

@@ -11,6 +11,7 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
   { href: "/job-cards", label: "Job Cards", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
   { permission: "invoices.view", href: "/invoices", label: "Invoices", icon: "M9 14l2 2 4-4M4 4h16v16l-3-2-3 2-2-2-2 2-3-2-3 2z" },
   { permission: "queries.view", href: "/queries", label: "Queries", icon: "M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8a9.9 9.9 0 01-4-.8L3 20l1.3-3.9A7.5 7.5 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z" },
+  { permission: "tasks.view", href: "/tasks", label: "Tasks", icon: "M9 11l3 3 8-8M20 12v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1h11" },
   { permission: "reports.view", href: "/reports", label: "Reports", icon: "M4 20h16M7 16V10m5 6V5m5 11v-4" },
   { permission: "reports.view", href: "/monitor", label: "Process monitor", icon: "M3 12h4l3-8 4 16 3-8h4" },
   { permission: "reports.view", href: "/marketing", label: "Marketing", icon: "M3 11v2a1 1 0 001 1h2l5 4V6L6 10H4a1 1 0 00-1 1zm13-3a5 5 0 010 8m3-11a9 9 0 010 14" },
@@ -22,7 +23,7 @@ const items: { href: string; label: string; icon: string; permission?: Permissio
   { permission: "settings.manage", href: "/settings", label: "Settings", icon: "M10.3 4.3a1.7 1.7 0 013.4 0 1.7 1.7 0 002.6 1.1 1.7 1.7 0 012.4 2.4 1.7 1.7 0 001 2.5 1.7 1.7 0 010 3.4 1.7 1.7 0 00-1 2.6 1.7 1.7 0 01-2.4 2.4 1.7 1.7 0 00-2.6 1 1.7 1.7 0 01-3.4 0 1.7 1.7 0 00-2.5-1 1.7 1.7 0 01-2.4-2.4 1.7 1.7 0 00-1.1-2.6 1.7 1.7 0 010-3.4 1.7 1.7 0 001.1-2.5 1.7 1.7 0 012.4-2.4 1.7 1.7 0 002.5-1.1zM15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
-export function Nav({ access }: { access: Access }) {
+export function Nav({ access, badges = {} }: { access: Access; badges?: Record<string, { count: number; alert?: boolean }> }) {
   const path = usePathname();
   const visible = items.filter((item) => (!item.permission || can(access, item.permission)) && !(item.hideWith && can(access, item.hideWith)));
   return (
@@ -45,6 +46,11 @@ export function Nav({ access }: { access: Access }) {
               <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
             </svg>
             {item.label}
+            {badges[item.href]?.count ? (
+              <span className={`ml-auto rounded-full px-1.5 text-xs font-semibold ${badges[item.href].alert ? "bg-kudu-600 text-white" : "bg-charcoal-600 text-charcoal-100"}`}>
+                {badges[item.href].count}
+              </span>
+            ) : null}
           </Link>
         );
       })}

@@ -18,14 +18,14 @@ export async function getSettings() {
   });
 }
 
-type Kind = "quote" | "jobCard" | "invoice" | "query";
+type Kind = "quote" | "jobCard" | "invoice" | "query" | "task";
 
 /** Atomically reserve the next document number, e.g. QT-0007. */
 export async function nextNumber(kind: Kind): Promise<string> {
   const db = await tenantDb();
   await getSettings();
-  const field = kind === "quote" ? "nextQuoteNo" : kind === "jobCard" ? "nextJobCardNo" : kind === "query" ? "nextQueryNo" : "nextInvoiceNo";
+  const field = kind === "quote" ? "nextQuoteNo" : kind === "jobCard" ? "nextJobCardNo" : kind === "query" ? "nextQueryNo" : kind === "task" ? "nextTaskNo" : "nextInvoiceNo";
   const s = await db.settings.update({ where: { id: 1 }, data: { [field]: { increment: 1 } } });
-  const prefix = kind === "quote" ? s.quotePrefix : kind === "jobCard" ? s.jobCardPrefix : kind === "query" ? s.queryPrefix : s.invoicePrefix;
+  const prefix = kind === "quote" ? s.quotePrefix : kind === "jobCard" ? s.jobCardPrefix : kind === "query" ? s.queryPrefix : kind === "task" ? s.taskPrefix : s.invoicePrefix;
   return `${prefix}${String(s[field] - 1).padStart(4, "0")}`;
 }

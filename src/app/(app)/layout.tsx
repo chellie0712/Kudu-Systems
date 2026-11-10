@@ -7,12 +7,17 @@ import { can } from "@/lib/permissions";
 import { currentBranchId, getBranches } from "@/lib/branch";
 import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { SignOutButton } from "@/components/SignOutButton";
+import { tenantDb } from "@/lib/db";
+import { myTaskCounts } from "@/lib/tasks";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const settings = await getSettings();
   const staff = can(user, "customers.view");
   const [branches, branchId] = staff ? await Promise.all([getBranches(), currentBranchId()]) : [[], null];
+  // Menu badge: my open tasks, red when any are overdue or escalations are waiting on me.
+  const tasks = can(user, "tasks.view") ? await myTaskCounts(await tenantDb(), user).catch(() => null) : null;
+  const badges: Record<string, { count: number; alert?: boolean }> = tasks ? { "/tasks": { count: tasks.open, alert: tasks.overdue + tasks.escalated > 0 } } : {};
   return (
     <div className="flex min-h-screen flex-col">
       <header className="no-print flex h-20 items-center justify-between border-b-2 border-kudu-600 bg-white px-4 md:px-6">
@@ -42,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <div className="flex flex-1 flex-col md:flex-row">
         <aside className="no-print bg-charcoal-800 md:w-56 md:shrink-0">
-          <Nav access={{ role: user.role, permissions: user.permissions }} />
+          <Nav access={{ role: user.role, permissions: user.permissions }} badges={badges} />
         </aside>
         <main className="print-main min-w-0 flex-1 p-4 md:p-8">{children}</main>
       </div>
