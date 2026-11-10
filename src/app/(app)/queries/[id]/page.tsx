@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AskCopilot } from "@/components/Copilot";
 import { notFound } from "next/navigation";
 import type { QueryStatus } from "@prisma/client";
 import { requirePermission } from "@/auth";
@@ -41,6 +42,7 @@ export default async function QueryPage({ params, searchParams }: { params: Prom
         back={{ href: "/queries", label: "Queries" }}
         title={<span className="flex items-center gap-3">{q.number} <QueryStatusBadge status={q.status} /></span>}
         subtitle={q.subject}
+        actions={can(user, "ai.use") ? <AskCopilot ask={`Read query ${q.number} and draft a reply to the customer, then suggest next steps.`} /> : undefined}
       />
       <Flash message={msg} />
       <Flash message={err} tone="error" />

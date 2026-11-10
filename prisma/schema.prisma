@@ -186,6 +186,9 @@ model Settings {
   poApprovalThreshold      Int     @default(0) // cents incl. VAT
   claimAutoApprove         Int     @default(0) // cents incl. VAT; expense claims below this are approved automatically, 0 = all need approval
   annualLeaveDays          Float   @default(15) // working days of annual leave per year (BCEA minimum is 15)
+  // AI copilot (src/lib/ai): needs ANTHROPIC_API_KEY on the server
+  aiEnabled                Boolean @default(true)
+  aiDailyLimit             Int     @default(60) // questions per person per day; 0 = no limit
   warrantyCovers     String  @default("General Pest Control\nTermites / WDI\nRodents\nFumigation\nOther") // one option per line
   warrantyTerms      String  @default("Covers re-treatment of the pest species and areas listed above, if activity recurs under normal conditions; a follow-up fee is applicable.\nExcludes new infestations by a different pest, and conditions beyond our control (alterations, water damage, etc.).\nNotify us in writing within 14 days of any recurring activity to remain covered under this warranty.\nVoid if unauthorised pest control products or other contractors are used in the treated area.\nReasonable access must be given for re-treatment visits; failure to do so may void cover for that area.\nNon-transferable — applies only to the client and property named above.") // one term per line
 }
@@ -1378,4 +1381,36 @@ model WebhookDelivery {
 
   @@index([status, nextAttemptAt])
   @@index([webhookId, createdAt])
+}
+
+// ---------- AI copilot (/copilot) ----------
+
+/// One conversation with the copilot. `messages` is the exchange as sent to the Claude API.
+model AiChat {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String    @default("New chat")
+  messages  Json      @default("[]")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  usage     AiUsage[]
+
+  @@index([userId, updatedAt])
+}
+
+/// Tokens used by one question, for the daily limit and the monthly cost in Settings.
+model AiUsage {
+  id           String   @id @default(cuid())
+  userId       String
+  chatId       String?
+  chat         AiChat?  @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  model        String   @default("")
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  cacheRead    Int      @default(0)
+  cacheWrite   Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }

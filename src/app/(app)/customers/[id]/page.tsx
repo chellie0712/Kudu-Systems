@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AskCopilot } from "@/components/Copilot";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/auth";
 import { can } from "@/lib/permissions";
@@ -114,6 +115,7 @@ export default async function CustomerPage({
             <Link href={`/job-cards/new?customerId=${id}`} className="btn-outline">+ Job card</Link>
             <Link href={`/invoices/new?customerId=${id}`} className="btn-outline">+ Invoice</Link>
             <Link href={`/customers/${id}/edit`} className="btn-outline">Edit</Link>
+            {can(user, "ai.use") && <AskCopilot ask={`Summarise ${customer.name} (customer id ${id}): what we have done for them, what is still open and what they owe.`} />}
           </>
         }
       />

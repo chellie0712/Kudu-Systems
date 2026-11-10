@@ -303,6 +303,24 @@ Workflows have a step **Send it to another system (webhook)**, which sends the r
 
 For testing on your own computer only, `WEBHOOKS_ALLOW_PRIVATE=1` allows `http://` and local addresses. Never set it on Vercel.
 
+## AI copilot
+
+The copilot (menu: **Copilot**) is a chat with Claude that can look things up in Kudu: customers, quotations, job cards, invoices, queries, tasks, staff and a business summary for a date range. It can also draft text (emails, payment reminders, replies to complaints, quotation wording) for you to copy. The only thing it can change is adding a task, and only when asked. It cannot send messages or edit customers, quotations, job cards or invoices. Record pages have an **Ask Copilot** button with a question already written.
+
+It answers as the person asking: every look-up checks that person's permissions, so a technician only sees their own job cards and someone without invoice access is told so. Chats are private to the person who started them.
+
+**Setup**
+
+1. Make an API key at [platform.claude.com](https://platform.claude.com) (Settings, API keys) and add credit to the account.
+2. In Vercel: Settings, Environment Variables, add `ANTHROPIC_API_KEY`, then redeploy.
+3. In Kudu: Settings, AI copilot. Switch it on or off and set the daily limit of questions per person (default 60, 0 means nobody can ask).
+
+**Who can use it:** the "Use the AI copilot" permission (`ai.use`). Administrators and office staff have it; technicians do not unless you give it to them in a custom role.
+
+**Cost:** Claude charges per word read and written (tokens). A typical question with a few look-ups costs roughly US$0.03–0.15 (about R0.50–R3). Settings shows this month's questions, estimated cost and the top users. Long chats cost more per question, so a chat closes after 60 messages and asks you to start a new one.
+
+If Claude declines a request, the API automatically retries it on a fallback model in the same call; if that also declines, the copilot says it can't help and the question is not kept in the chat history.
+
 ## Reports and cashflow
 
 **Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CopilotSettings } from "@/components/CopilotSettings";
 import { authDisabled, requirePermission } from "@/auth";
 import { tenantDb } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
@@ -352,6 +353,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </div>
         <Link href="/settings/api" className="btn-outline">API &amp; webhooks</Link>
       </div>
+
+      <CopilotSettings enabled={s.aiEnabled} dailyLimit={s.aiDailyLimit} />
 
       <div id="statuses" className="card mt-6 p-6">
         <SectionTitle>Job statuses</SectionTitle>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AskCopilot } from "@/components/Copilot";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/auth";
 import { can, canAccessJobCard } from "@/lib/permissions";
@@ -101,6 +102,7 @@ export default async function JobCardPage({
         actions={
           <>
             <Link href={`/job-cards/${j.id}/edit`} className="btn-primary">Edit / complete</Link>
+            {may("ai.use") && <AskCopilot ask={`Summarise job card ${j.number} and draft a short message to the customer about it.`} />}
             {may("invoices.edit") && (
               <form action={createInvoiceFromJobCard}>
                 <input type="hidden" name="id" value={j.id} />

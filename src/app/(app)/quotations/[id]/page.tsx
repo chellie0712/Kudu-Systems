@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AskCopilot } from "@/components/Copilot";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/auth";
 import { can } from "@/lib/permissions";
@@ -59,6 +60,7 @@ export default async function QuotationPage({
         subtitle={q.title}
         actions={
           <>
+            {can(user, "ai.use") && <AskCopilot ask={`Draft a friendly follow-up message to the customer about quotation ${q.number}.`} />}
             <form action={createJobCardFromQuotation}>
               <input type="hidden" name="id" value={q.id} />
               <button className="btn-primary">Create job card</button>
