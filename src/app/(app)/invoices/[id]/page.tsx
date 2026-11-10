@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AskCopilot } from "@/components/Copilot";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/auth";
 import { can } from "@/lib/permissions";
@@ -72,6 +73,7 @@ export default async function InvoicePage({
           <>
             <Link href={`/invoices/${inv.id}/edit`} className="btn-primary">Edit</Link>
             <PrintButton />
+            {can(user, "ai.use") && <AskCopilot ask={`Draft a polite payment reminder for invoice ${inv.number}.`} />}
           </>
         }
       />
