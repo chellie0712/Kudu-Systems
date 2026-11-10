@@ -20,7 +20,7 @@ export async function saveSettings(fd: FormData) {
     "companyName", "tagline", "email", "phone", "website", "address", "vatNumber", "regNumber",
     "currency", "currencySymbol", "bankName", "bankAccountName", "bankAccountNumber", "bankBranchCode",
     "quoteTerms", "invoiceTerms", "quotePrefix", "jobCardPrefix", "invoicePrefix", "queryPrefix", "googleCalendarId",
-    "jobCardTitle", "jobCardSubtitle", "pcoNumber", "warrantyCovers", "warrantyTerms", "labourDescription",
+    "jobCardTitle", "jobCardSubtitle", "pcoNumber", "warrantyCovers", "warrantyTerms", "labourDescription", "poPrefix",
   ] as const;
   const data: Record<string, string | number | boolean | null> = {};
   for (const f of textFields) data[f] = str(fd, f);
@@ -32,6 +32,13 @@ export async function saveSettings(fd: FormData) {
   data.labourRate = Math.max(0, toCents(str(fd, "labourRate")));
   data.invoiceApproval = fd.get("invoiceApproval") === "on";
   data.invoiceApprovalThreshold = Math.max(0, toCents(str(fd, "invoiceApprovalThreshold")));
+  data.quoteApproval = fd.get("quoteApproval") === "on";
+  data.quoteApprovalThreshold = Math.max(0, toCents(str(fd, "quoteApprovalThreshold")));
+  data.poApproval = fd.get("poApproval") === "on";
+  data.poApprovalThreshold = Math.max(0, toCents(str(fd, "poApprovalThreshold")));
+  data.claimAutoApprove = Math.max(0, toCents(str(fd, "claimAutoApprove")));
+  data.annualLeaveDays = Math.max(0, Math.min(365, num(fd, "annualLeaveDays", 15)));
+  data.poPrefix = String(data.poPrefix || "PO-");
   data.labourRoundMinutes = Math.max(0, Math.min(60, Math.round(num(fd, "labourRoundMinutes", 15))));
   try {
     data.logo = parseLogo(str(fd, "logo"));

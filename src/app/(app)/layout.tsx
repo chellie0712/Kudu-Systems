@@ -9,6 +9,7 @@ import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { SignOutButton } from "@/components/SignOutButton";
 import { tenantDb } from "@/lib/db";
 import { myTaskCounts } from "@/lib/tasks";
+import { approvalCount, approvesAnything } from "@/lib/approvalInbox";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -18,6 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Menu badge: my open tasks, red when any are overdue or escalations are waiting on me.
   const tasks = can(user, "tasks.view") ? await myTaskCounts(await tenantDb(), user).catch(() => null) : null;
   const badges: Record<string, { count: number; alert?: boolean }> = tasks ? { "/tasks": { count: tasks.open, alert: tasks.overdue + tasks.escalated > 0 } } : {};
+  // Menu badge: everything waiting for my approval.
+  const waiting = approvesAnything(user) ? await approvalCount(await tenantDb(), user, settings).catch(() => 0) : 0;
+  if (waiting) badges["/approvals"] = { count: waiting, alert: true };
   return (
     <div className="flex min-h-screen flex-col">
       <header className="no-print flex h-20 items-center justify-between border-b-2 border-kudu-600 bg-white px-4 md:px-6">

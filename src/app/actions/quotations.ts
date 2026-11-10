@@ -11,6 +11,10 @@ import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
 import { contactForDoc, jobCardContactFields } from "@/lib/contacts";
 import { logStatusChange } from "@/lib/statusLog";
+import { maySend, quoteApprovalState } from "@/lib/approval";
+
+/** Statuses that mean the quote went to the customer, so need approval first when it is switched on. */
+const OUT_TO_CUSTOMER: QuotationStatus[] = [QuotationStatus.SENT, QuotationStatus.ACCEPTED];
 
 export async function saveQuotation(fd: FormData) {
   const db = await tenantDb();
@@ -22,10 +26,22 @@ export async function saveQuotation(fd: FormData) {
   const discount = cents(fd, "discount");
   const totals = computeTotals(items, vatRate, discount);
   const issueDate = optDate(fd, "issueDate") ?? new Date();
+  const before = id ? await db.quotation.findUnique({ where: { id } }) : null;
+  let status = (str(fd, "status") as QuotationStatus) || QuotationStatus.DRAFT;
+  if (!(status in QuotationStatus)) status = QuotationStatus.DRAFT;
+  // A changed total needs approving again.
+  const keepApproval = !!before?.approvedAt && before.total === totals.total;
+  const state = quoteApprovalState({ total: totals.total, approvedAt: keepApproval ? before!.approvedAt : null, approvalRequestedAt: before?.approvalRequestedAt ?? null }, settings);
+  let notice = "Quotation saved";
+  if (OUT_TO_CUSTOMER.includes(status) && !OUT_TO_CUSTOMER.includes(before?.status ?? QuotationStatus.DRAFT) && !maySend(state)) {
+    status = before?.status ?? QuotationStatus.DRAFT;
+    notice = "Saved, but not marked as sent: this quotation needs approval first.";
+  }
   const data = {
     customerId: str(fd, "customerId"),
     title: str(fd, "title"),
-    status: (str(fd, "status") as QuotationStatus) || QuotationStatus.DRAFT,
+    status,
+    ...(keepApproval ? {} : { approvedAt: null, approvedBy: "" }),
     issueDate,
     validUntil: optDate(fd, "validUntil") ?? addDays(issueDate, settings.quoteValidityDays),
     siteAddress: str(fd, "siteAddress"),
@@ -48,14 +64,21 @@ export async function saveQuotation(fd: FormData) {
         data: { ...data, contactId, number: await nextNumber("quote"), items: { create: itemRows } },
       });
   revalidatePath("/quotations");
-  redirect(`/quotations/${quote.id}?msg=Quotation+saved`);
+  redirect(`/quotations/${quote.id}?msg=${encodeURIComponent(notice)}`);
 }
 
 export async function setQuotationStatus(fd: FormData) {
   const db = await tenantDb();
   await requirePermission("quotations.edit");
   const id = str(fd, "id");
-  await db.quotation.update({ where: { id }, data: { status: str(fd, "status") as QuotationStatus } });
+  const status = str(fd, "status") as QuotationStatus;
+  if (!(status in QuotationStatus)) redirect(`/quotations/${id}?err=Unknown+status`);
+  const q = await db.quotation.findUnique({ where: { id } });
+  if (!q) redirect("/quotations");
+  if (OUT_TO_CUSTOMER.includes(status) && !OUT_TO_CUSTOMER.includes(q.status) && !maySend(quoteApprovalState(q, await getSettings()))) {
+    redirect(`/quotations/${id}?err=${encodeURIComponent("This quotation needs approval before it can be sent.")}`);
+  }
+  await db.quotation.update({ where: { id }, data: { status } });
   revalidatePath(`/quotations/${id}`);
   redirect(`/quotations/${id}?msg=Status+updated`);
 }
@@ -150,4 +173,38 @@ export async function createInvoiceFromQuotation(fd: FormData) {
   await markAccepted(q.id);
   revalidatePath("/invoices");
   redirect(`/invoices/${inv.id}?msg=Invoice+created+from+${q.number}`);
+}
+
+// ---------- Approval ----------
+
+export async function requestQuoteApproval(fd: FormData) {
+  const db = await tenantDb();
+  const user = await requirePermission("quotations.edit");
+  const id = str(fd, "id");
+  await db.quotation.update({ where: { id }, data: { approvalRequestedAt: new Date(), approvalRequestedBy: user.name, approvalNote: "" } });
+  revalidatePath("/quotations");
+  redirect(`/quotations/${id}?msg=Sent+for+approval`);
+}
+
+export async function approveQuote(fd: FormData) {
+  const db = await tenantDb();
+  const user = await requirePermission("quotations.approve");
+  const id = str(fd, "id");
+  await db.quotation.update({ where: { id }, data: { approvedAt: new Date(), approvedBy: user.name, approvalNote: "" } });
+  revalidatePath("/quotations");
+  const back = str(fd, "returnTo");
+  redirect(back.startsWith("/approvals") ? `${back}?msg=Quotation+approved` : `/quotations/${id}?msg=Quotation+approved`);
+}
+
+/** Sends the quotation back to whoever submitted it, with a reason. */
+export async function rejectQuote(fd: FormData) {
+  const db = await tenantDb();
+  await requirePermission("quotations.approve");
+  const id = str(fd, "id");
+  const note = str(fd, "note");
+  if (!note) redirect(`/quotations/${id}?err=${encodeURIComponent("Say why it is sent back, so it can be fixed.")}`);
+  await db.quotation.update({ where: { id }, data: { approvalRequestedAt: null, approvedAt: null, approvedBy: "", approvalNote: note } });
+  revalidatePath("/quotations");
+  const back = str(fd, "returnTo");
+  redirect(back.startsWith("/approvals") ? `${back}?msg=Quotation+sent+back` : `/quotations/${id}?msg=Quotation+sent+back`);
 }

@@ -13,6 +13,7 @@ import { currentBranchId, getBranches } from "@/lib/branch";
 import { OPEN_STATUSES, overdueBefore } from "@/lib/queries";
 import { openJobs as monitorJobs } from "@/lib/monitor";
 import { escalateOverdue, myTaskCounts } from "@/lib/tasks";
+import { approvalCount, approvesAnything } from "@/lib/approvalInbox";
 
 /** My open tasks, red when any are overdue, plus overdue tasks escalated to me. Escalates on load. */
 async function TasksBanner({ db, user }: { db: TenantDb; user: AppUser }) {
@@ -73,10 +74,8 @@ export default async function Dashboard() {
   const outstanding = unpaid.reduce((s, i) => s + i.total - i.amountPaid, 0);
   const overdueTotal = unpaid.filter((i) => i.dueDate < now).reduce((s, i) => s + i.total - i.amountPaid, 0);
 
-  const awaitingApproval =
-    settings.invoiceApproval && can(user, "invoices.approve")
-      ? await db.invoice.count({ where: { approvalRequestedAt: { not: null }, approvedAt: null, status: { not: "CANCELLED" }, ...ofBranch } })
-      : 0;
+  // Everything waiting for my approval: quotes, invoices, purchase orders, expense claims, leave.
+  const awaitingApproval = approvesAnything(user) ? await approvalCount(db, user, settings) : 0;
   const queryCounts = can(user, "queries.view")
     ? await Promise.all([
         db.query.count({ where: { status: { in: OPEN_STATUSES }, ...ofBranch } }),
@@ -115,8 +114,8 @@ export default async function Dashboard() {
         }
       />
       {awaitingApproval > 0 && (
-        <Link href="/invoices?status=AWAITING_APPROVAL" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
-          {awaitingApproval} invoice{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
+        <Link href="/approvals" className="mb-4 block rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
+          {awaitingApproval} item{awaitingApproval === 1 ? " is" : "s are"} waiting for your approval →
         </Link>
       )}
       <TasksBanner db={db} user={user} />

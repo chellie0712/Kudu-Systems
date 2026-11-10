@@ -34,6 +34,7 @@ const RULES = {
   "quotations.view": STAFF,
   "quotations.edit": STAFF,
   "quotations.delete": ADMIN,
+  "quotations.approve": ADMIN, // approve quotations when Settings → Approvals → Quotations is on
   "jobcards.viewAll": STAFF, // without it, only job cards assigned to you
   "jobcards.create": STAFF,
   "jobcards.edit": ALL, // technicians: only their own (checked with canAccessJobCard)
@@ -67,6 +68,15 @@ const RULES = {
   "reports.view": STAFF, // sales, cashflow, debtors and productivity reports, CSV exports
   "profit.view": ADMIN, // profit & loss (includes wages and other expenses)
   "expenses.manage": ADMIN, // record business expenses for the profit & loss
+  "expenses.claim": ALL, // claim back their own out-of-pocket expenses
+  "expenses.approve": ADMIN, // approve or reject expense claims, mark them paid back
+  "purchases.view": STAFF, // purchase orders
+  "purchases.edit": STAFF, // create purchase orders, send for approval, mark ordered, receive stock
+  "purchases.approve": ADMIN,
+  "purchases.delete": ADMIN,
+  "leave.request": ALL, // request leave for themselves
+  "leave.viewAll": STAFF, // see everyone's leave (who is off when)
+  "leave.approve": ADMIN, // approve or decline leave requests
   "email.connect": STAFF, // connect your own mailbox, so campaigns you send go out from your sign-in address
   "campaigns.edit": STAFF, // write email campaigns and send tests
   "campaigns.send": STAFF, // send a campaign to customers, pause or cancel it
@@ -139,6 +149,7 @@ export const PERMISSION_INFO: Record<Permission, { group: string; label: string;
   "quotations.view": { group: "Quotations", label: "See quotations" },
   "quotations.edit": { group: "Quotations", label: "Create and edit quotations" },
   "quotations.delete": { group: "Quotations", label: "Delete quotations" },
+  "quotations.approve": { group: "Quotations", label: "Approve quotations", help: "When Settings → Approvals → Quotations is on." },
   "jobcards.viewAll": { group: "Job cards", label: "See all job cards", help: "Without it, only job cards assigned to them." },
   "jobcards.create": { group: "Job cards", label: "Create job cards" },
   "jobcards.edit": { group: "Job cards", label: "Fill in and sign off job cards they can open" },
@@ -163,6 +174,15 @@ export const PERMISSION_INFO: Record<Permission, { group: string; label: string;
   "reports.view": { group: "Reports and money", label: "Reports, cashflow and marketing figures" },
   "profit.view": { group: "Reports and money", label: "Profit and loss (includes wages and expenses)" },
   "expenses.manage": { group: "Reports and money", label: "Record business expenses" },
+  "expenses.claim": { group: "Expense claims and leave", label: "Claim back their own expenses" },
+  "expenses.approve": { group: "Expense claims and leave", label: "Approve expense claims and mark them paid" },
+  "leave.request": { group: "Expense claims and leave", label: "Request leave" },
+  "leave.viewAll": { group: "Expense claims and leave", label: "See everyone's leave" },
+  "leave.approve": { group: "Expense claims and leave", label: "Approve leave requests" },
+  "purchases.view": { group: "Purchase orders", label: "See purchase orders" },
+  "purchases.edit": { group: "Purchase orders", label: "Create purchase orders, mark ordered, receive stock" },
+  "purchases.approve": { group: "Purchase orders", label: "Approve purchase orders" },
+  "purchases.delete": { group: "Purchase orders", label: "Delete purchase orders" },
   "email.connect": { group: "Email marketing", label: "Connect their own mailbox" },
   "campaigns.edit": { group: "Email marketing", label: "Write email campaigns and send tests" },
   "campaigns.send": { group: "Email marketing", label: "Send campaigns to customers" },
@@ -189,7 +209,10 @@ export const PERMISSION_TABLE: { label: string; permission: Permission; note?: P
   { label: "Reports and cashflow", permission: "reports.view" },
   { label: "Email campaigns to customers (from own mailbox)", permission: "campaigns.send" },
   { label: "Invoices and payments", permission: "invoices.edit" },
-  { label: "Approve invoices", permission: "invoices.approve" },
+  { label: "Approve invoices, quotations and purchase orders", permission: "invoices.approve" },
+  { label: "Purchase orders", permission: "purchases.edit" },
+  { label: "Claim expenses and request leave", permission: "leave.request" },
+  { label: "Approve expense claims and leave", permission: "leave.approve" },
   { label: "See prices and totals", permission: "dashboard.money" },
   { label: "Calendar", permission: "calendar.edit", note: { TECHNICIAN: "View own jobs" } },
   { label: "Delete records", permission: "invoices.delete" },
