@@ -257,6 +257,33 @@ The daily job `/api/cron/workflows` (05:30 UTC) checks the timed triggers, finis
 
 Not covered yet: status changes that come from the accounting packages (payments synced from Xero, Sage and the others) do not trigger workflows.
 
+## Document templates
+
+**Documents → Templates** (permission `documents.templates`, admins) holds the company's own documents: certificates, agreements and letters. Each template is written once with fields such as `{{customer.name}}`, `{{job.date}}` or `{{quote.total}}`, and Kudu fills them in each time a document is made. The editor has a field list (click a field to insert it) and a live preview.
+
+**What a template can contain**
+
+- Layout: `# Heading`, `## Section`, `- bullet`, `**bold**`, `> highlighted note`, and `---` for a line.
+- Blocks: `[[items]]` (the line items), `[[signatures]]` (client and company signature lines) and `[[pagebreak]]`.
+
+**Starting templates.** Five are included:
+
+- Certificate of treatment, made from a job card
+- Warranty certificate, made from a job card
+- Service agreement, made from a quotation
+- Letter to a customer
+- Payment reminder letter, made from an invoice
+
+**Making documents**
+
+- **Where.** A document is made from the Documents section on a job card, quotation, invoice or customer (Documents tab), or by the workflow step "Make a document from a template". Technicians can make documents only for their own jobs (`documents.create`).
+- **Numbering.** Each template has its own numbering, e.g. CERT-0001.
+- **Fixed once made.** The text is filled in when the document is made and stored, so it does not change if the record changes later.
+- **Signing.** The client can sign on screen.
+- **Company signature.** The company signature is the PCO signature from Settings.
+- **Printing.** Documents print or save as PDF from the browser.
+- **Customer portal.** Templates marked "Customers see it in the customer portal" appear under Documents in the portal.
+
 ## Reports and cashflow
 
 **Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.

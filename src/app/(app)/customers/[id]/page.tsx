@@ -23,6 +23,7 @@ import { CONSENT_HELP, CONSENT_LABELS } from "@/lib/email/audience";
 import { TaskTable } from "@/components/Tasks";
 import { LinkedForms } from "@/components/Forms";
 import { isOpenTask, TASK_ORDER, TASK_ROW_INCLUDE, taskScope } from "@/lib/tasks";
+import { LinkedDocuments } from "@/components/LinkedDocuments";
 
 const tabs = [
   { key: "info", label: "Information" },
@@ -35,6 +36,7 @@ const tabs = [
   { key: "queries", label: "Queries" },
   { key: "tasks", label: "Tasks" },
   { key: "forms", label: "Forms" },
+  { key: "documents", label: "Documents" },
   { key: "portal", label: "Portal" },
 ];
 
@@ -93,7 +95,7 @@ export default async function CustomerPage({
     tasks: tasks.filter((t) => isOpenTask(t.status)).length,
     portal: customer.portalUsers.filter((u) => !u.disabled && u.passwordHash).length,
   };
-  const visibleTabs = tabs.filter((t) => (t.key !== "portal" || can(user, "portal.manage")) && (t.key !== "tasks" || can(user, "tasks.view")) && (t.key !== "forms" || can(user, "forms.fill")));
+  const visibleTabs = tabs.filter((t) => (t.key !== "portal" || can(user, "portal.manage")) && (t.key !== "tasks" || can(user, "tasks.view")) && (t.key !== "forms" || can(user, "forms.fill")) && (t.key !== "documents" || can(user, "documents.create") || can(user, "documents.view")));
 
   return (
     <div>
@@ -305,6 +307,11 @@ export default async function CustomerPage({
         </div>
       )}
       {tab === "forms" && <LinkedForms db={db} user={user} link={{ customerId: id }} />}
+      {tab === "documents" && (
+        (await LinkedDocuments({ db, user, link: { customerId: id }, subject: "customer", subjectId: id, returnTo: `/customers/${id}?tab=documents` })) ?? (
+          <p className="card p-5 text-sm text-charcoal-500">No documents yet. Documents for this customer&apos;s job cards, quotations and invoices are listed here too once made; templates are under Documents → Templates.</p>
+        )
+      )}
       {tab === "portal" && can(user, "portal.manage") && (
         <PortalAccessTab customer={customer} users={customer.portalUsers} companySlug={(await currentCompany()).company.slug} companyName={settings.companyName} />
       )}

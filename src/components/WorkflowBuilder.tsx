@@ -94,7 +94,7 @@ export function WorkflowBuilder({ initial, lists, taskCategories, queryCategorie
   const optionsFor = (field: string): Record<string, string> | null => {
     const o = FIELDS[field]?.options;
     if (!o) return null;
-    return typeof o === "string" ? lists[o.slice(8) as keyof BuilderLists] : o;
+    return typeof o === "string" ? (lists[o.slice(8) as keyof BuilderLists] as Record<string, string>) : o;
   };
 
   const setCond = (i: number, patch: Partial<Condition>) => setConditions((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
@@ -308,6 +308,17 @@ export function WorkflowBuilder({ initial, lists, taskCategories, queryCategorie
                 )}
                 {a.type === "quoteStatus" && (
                   <Select label="New status" value={a.status} onChange={(status) => setAct(i, { status })} options={{ "": "Choose…", ...QUOTE_STATUSES }} />
+                )}
+                {a.type === "makeDoc" && (
+                  <Select
+                    label="Template"
+                    value={a.templateId}
+                    onChange={(templateId) => setAct(i, { templateId })}
+                    options={{
+                      "": Object.values(lists.templates).some((t) => t.subject === subject) ? "Choose…" : `No templates for a ${SUBJECT_LABELS[subject]} yet`,
+                      ...Object.fromEntries(Object.entries(lists.templates).filter(([, t]) => t.subject === subject).map(([k, t]) => [k, t.name])),
+                    }}
+                  />
                 )}
               </li>
             );

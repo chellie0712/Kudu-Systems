@@ -21,6 +21,7 @@ import { QuotationSheet } from "@/components/DocSheets";
 import { ConfirmButton, PrintButton } from "@/components/ConfirmButton";
 
 import { LinkedTasks } from "@/components/Tasks";
+import { LinkedDocuments } from "@/components/LinkedDocuments";
 
 export default async function QuotationPage({
   params,
@@ -117,6 +118,7 @@ export default async function QuotationPage({
       <QuotationSheet q={q} settings={settings} />
 
       <LinkedTasks db={db} user={user} link={{ quotationId: q.id }} returnTo={`/quotations/${q.id}`} className="mx-auto mt-6 max-w-4xl" />
+      <LinkedDocuments db={db} user={user} link={{ quotationId: q.id }} subject="quote" subjectId={q.id} returnTo={`/quotations/${q.id}`} className="mx-auto mt-6 max-w-4xl" />
 
       {can(user, "quotations.delete") && (
         <form action={deleteQuotation} className="no-print mx-auto mt-6 max-w-4xl text-right">
