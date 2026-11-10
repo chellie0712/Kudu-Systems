@@ -12,6 +12,7 @@ import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
 import { contactForDoc } from "@/lib/contacts";
 import { autoSend, removePayment } from "@/lib/accounting/sync";
+import { emit } from "@/lib/workflows/events";
 
 /** Recalculate amount paid and set PAID / PARTIALLY_PAID / SENT accordingly. */
 async function refreshPaymentStatus(invoiceId: string) {
@@ -25,6 +26,13 @@ async function refreshPaymentStatus(invoiceId: string) {
     else if (inv.status === InvoiceStatus.PAID || inv.status === InvoiceStatus.PARTIALLY_PAID) status = InvoiceStatus.SENT;
   }
   await db.invoice.update({ where: { id: invoiceId }, data: { amountPaid, status } });
+}
+
+/** Tells the workflows when an invoice's status is different from `before`. */
+async function statusEvent(id: string, before: InvoiceStatus | null) {
+  const db = await tenantDb();
+  const now = await db.invoice.findUnique({ where: { id }, select: { status: true } });
+  if (now && now.status !== before) await emit(db, "invoice.status", id, { status: now.status });
 }
 
 export async function saveInvoice(fd: FormData) {
@@ -77,6 +85,8 @@ export async function saveInvoice(fd: FormData) {
       })
     : await db.invoice.create({ data: { ...data, contactId, number: await nextNumber("invoice"), items: { create: itemRows } } });
   await refreshPaymentStatus(inv.id);
+  if (!id) await emit(db, "invoice.created", inv.id);
+  await statusEvent(inv.id, before?.status ?? (id ? null : InvoiceStatus.DRAFT));
   await autoSend(db, inv.id);
   revalidatePath("/invoices");
   const approvalLost = before?.approvedAt && !keepApproval ? " The total changed, so it needs approving again." : "";
@@ -93,8 +103,10 @@ export async function setInvoiceStatus(fd: FormData) {
     const [inv, settings] = await Promise.all([db.invoice.findUniqueOrThrow({ where: { id } }), getSettings()]);
     if (!maySend(approvalState(inv, settings))) redirect(`/invoices/${id}?err=${encodeURIComponent("This invoice needs approval before it can be sent.")}`);
   }
+  const was = (await db.invoice.findUnique({ where: { id }, select: { status: true } }))?.status ?? null;
   await db.invoice.update({ where: { id }, data: { status } });
   if (str(fd, "status") !== InvoiceStatus.CANCELLED) await refreshPaymentStatus(id);
+  await statusEvent(id, was);
   await autoSend(db, id);
   revalidatePath(`/invoices/${id}`);
   redirect(`/invoices/${id}?msg=Status+updated`);
@@ -106,6 +118,7 @@ export async function recordPayment(fd: FormData) {
   const invoiceId = str(fd, "invoiceId");
   const amount = cents(fd, "amount");
   if (amount <= 0) redirect(`/invoices/${invoiceId}?err=Enter+a+payment+amount`);
+  const was = (await db.invoice.findUnique({ where: { id: invoiceId }, select: { status: true } }))?.status ?? null;
   await db.payment.create({
     data: {
       invoiceId,
@@ -116,6 +129,8 @@ export async function recordPayment(fd: FormData) {
     },
   });
   await refreshPaymentStatus(invoiceId);
+  await emit(db, "payment.received", invoiceId);
+  await statusEvent(invoiceId, was);
   await autoSend(db, invoiceId);
   revalidatePath(`/invoices/${invoiceId}`);
   redirect(`/invoices/${invoiceId}?msg=Payment+recorded`);
@@ -126,7 +141,9 @@ export async function deletePayment(fd: FormData) {
   await requirePermission("payments.delete");
   const p = await db.payment.delete({ where: { id: str(fd, "id") } });
   await removePayment(db, p).catch(() => undefined);
+  const was = (await db.invoice.findUnique({ where: { id: p.invoiceId }, select: { status: true } }))?.status ?? null;
   await refreshPaymentStatus(p.invoiceId);
+  await statusEvent(p.invoiceId, was);
   revalidatePath(`/invoices/${p.invoiceId}`);
   redirect(`/invoices/${p.invoiceId}?msg=Payment+removed`);
 }

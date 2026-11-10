@@ -6,6 +6,7 @@ import { ensurePrimary } from "./contacts";
 import { nextNumberIn } from "./settings";
 import { autoAssign } from "./tasks";
 import { answersAsText, mapped, type Answers, type FormField } from "./forms";
+import { emit } from "./workflows/events";
 
 const secret = () => process.env.AUTH_SECRET || "dev-secret";
 
@@ -97,6 +98,8 @@ export async function processWebSubmission(db: PrismaClient, form: Form, fields:
     });
     queryId = q.id;
   }
+  if (customer?.created) await emit(db, "customer.created", customer.id);
+  if (queryId) await emit(db, "query.created", queryId);
   let taskId: string | null = null;
   if (form.createTask) {
     const picked = await autoAssign(db, { category: form.taskCategory, priority: "NORMAL", customerId: customer?.id ?? null });

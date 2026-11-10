@@ -1,7 +1,8 @@
 // Job card status history: one row per change, written wherever a job card's status changes.
 // The process monitor (src/lib/monitor.ts) reads it to show how long jobs spend in each step.
 import type { JobCardStatus, Prisma, PrismaClient } from "@prisma/client";
-import { stageLabel } from "./jobStatus";
+import { CUSTOM_PREFIX, stageLabel } from "./jobStatus";
+import { emit } from "./workflows/events";
 
 type Tx = PrismaClient | Prisma.TransactionClient;
 export type StatusValue = { status: JobCardStatus; statusId: string | null };
@@ -33,4 +34,11 @@ export async function logStatusChange(db: Tx, jobCardId: string, before: StatusV
       byName: byName.slice(0, 120),
     },
   });
+  // Workflows: only with the full client (not inside a transaction), since they write more records.
+  if ("$transaction" in db) {
+    if (!before) await emit(db, "job.created", jobCardId);
+    // Matches workflows waiting for the custom status, and for the stage when the stage changed.
+    const keys = [after.statusId ? `${CUSTOM_PREFIX}${after.statusId}` : "", !before || before.status !== after.status ? after.status : ""].filter(Boolean);
+    if (before) await emit(db, "job.status", jobCardId, { status: keys });
+  }
 }

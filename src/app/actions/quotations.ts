@@ -9,9 +9,10 @@ import { cents, num, optDate, parseItems, str } from "@/lib/form";
 import { computeTotals } from "@/lib/totals";
 import { getSettings, nextNumber } from "@/lib/settings";
 import { addDays } from "@/lib/format";
-import { contactForDoc, jobCardContactFields } from "@/lib/contacts";
-import { logStatusChange } from "@/lib/statusLog";
+import { contactForDoc } from "@/lib/contacts";
 import { maySend, quoteApprovalState } from "@/lib/approval";
+import { emit } from "@/lib/workflows/events";
+import { jobCardFromQuote, markQuoteAccepted } from "@/lib/conversions";
 
 /** Statuses that mean the quote went to the customer, so need approval first when it is switched on. */
 const OUT_TO_CUSTOMER: QuotationStatus[] = [QuotationStatus.SENT, QuotationStatus.ACCEPTED];
@@ -63,6 +64,8 @@ export async function saveQuotation(fd: FormData) {
     : await db.quotation.create({
         data: { ...data, contactId, number: await nextNumber("quote"), items: { create: itemRows } },
       });
+  if (!id) await emit(db, "quote.created", quote.id);
+  if (quote.status !== (before?.status ?? QuotationStatus.DRAFT)) await emit(db, "quote.status", quote.id, { status: quote.status });
   revalidatePath("/quotations");
   redirect(`/quotations/${quote.id}?msg=${encodeURIComponent(notice)}`);
 }
@@ -79,6 +82,7 @@ export async function setQuotationStatus(fd: FormData) {
     redirect(`/quotations/${id}?err=${encodeURIComponent("This quotation needs approval before it can be sent.")}`);
   }
   await db.quotation.update({ where: { id }, data: { status } });
+  if (status !== q.status) await emit(db, "quote.status", id, { status });
   revalidatePath(`/quotations/${id}`);
   redirect(`/quotations/${id}?msg=Status+updated`);
 }
@@ -92,41 +96,14 @@ export async function deleteQuotation(fd: FormData) {
   redirect(`/customers/${q.customerId}?tab=quotations&msg=Quotation+deleted`);
 }
 
-async function markAccepted(id: string) {
-  const db = await tenantDb();
-  await db.quotation.updateMany({
-    where: { id, status: { in: [QuotationStatus.DRAFT, QuotationStatus.SENT] } },
-    data: { status: QuotationStatus.ACCEPTED },
-  });
-}
 
 /** Create a job card pre-filled from the quotation, then open it for editing. */
 export async function createJobCardFromQuotation(fd: FormData) {
   const db = await tenantDb();
   const user = await requirePermission("jobcards.create");
-  const q = await db.quotation.findUniqueOrThrow({
-    where: { id: str(fd, "id") },
-    include: { customer: true, contact: true, items: { orderBy: { sortOrder: "asc" } } },
-  });
-  const scope = [
-    q.title,
-    ...q.items.map((i) => `• ${i.description}${i.quantity !== 1 || i.unit ? ` (${i.quantity}${i.unit ? " " + i.unit : ""})` : ""}`),
-  ]
-    .filter(Boolean)
-    .join("\n");
-  const jc = await db.jobCard.create({
-    data: {
-      number: await nextNumber("jobCard"),
-      customerId: q.customerId,
-      quotationId: q.id,
-      contactId: q.contactId ?? (await contactForDoc(db, q.customerId, "")),
-      siteAddress: q.siteAddress || q.customer.siteAddress || q.customer.billingAddress,
-      ...jobCardContactFields(q.customer, q.contact),
-      scopeOfWork: scope,
-    },
-  });
-  await logStatusChange(db, jc.id, null, { status: jc.status, statusId: jc.statusId }, user.name);
-  await markAccepted(q.id);
+  await getSettings();
+  const q = await db.quotation.findUniqueOrThrow({ where: { id: str(fd, "id") }, select: { id: true, number: true } });
+  const jc = await jobCardFromQuote(db, q.id, user.name);
   revalidatePath("/job-cards");
   redirect(`/job-cards/${jc.id}/edit?msg=Job+card+created+from+${q.number}.+Set+the+date+and+technician.`);
 }
@@ -170,7 +147,8 @@ export async function createInvoiceFromQuotation(fd: FormData) {
       },
     },
   });
-  await markAccepted(q.id);
+  await emit(db, "invoice.created", inv.id);
+  await markQuoteAccepted(db, q.id);
   revalidatePath("/invoices");
   redirect(`/invoices/${inv.id}?msg=Invoice+created+from+${q.number}`);
 }

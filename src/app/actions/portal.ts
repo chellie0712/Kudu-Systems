@@ -12,6 +12,7 @@ import { getCompanyBySlug, normaliseSlug } from "@/lib/platform";
 import { clientForCompany } from "@/lib/tenant";
 import { nextNumber } from "@/lib/settings";
 import { MIN_PASSWORD, PORTAL_QUERY_TYPES } from "@/lib/portal";
+import { emit } from "@/lib/workflows/events";
 
 async function rememberCompany(slug: string) {
   (await cookies()).set(COMPANY_COOKIE, slug, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 365 * 24 * 60 * 60, path: "/" });
@@ -81,6 +82,7 @@ export async function respondToQuotation(answer: "ACCEPTED" | "DECLINED", fd: Fo
       responseNote: str(fd, "note").slice(0, 2000),
     },
   });
+  await emit(db, "quote.status", id, { status: answer });
   revalidatePath("/quotations");
   revalidatePath("/");
   redirect(`${path}?msg=${encodeURIComponent(answer === "ACCEPTED" ? "Thank you, the quotation is accepted. We'll be in touch to book the work." : "Thank you for letting us know.")}`);
@@ -109,6 +111,7 @@ export async function logPortalQuery(fd: FormData) {
       notes: { create: { text: `Logged by ${user.name} (${user.email}) in the customer portal`, system: true, userName: user.name } },
     },
   });
+  await emit(db, "query.created", q.id);
   revalidatePath("/queries");
   redirect(`/portal/queries?msg=${encodeURIComponent(`Thank you. Your reference is ${q.number}; we will get back to you.`)}`);
 }

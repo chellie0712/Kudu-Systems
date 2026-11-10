@@ -226,6 +226,37 @@ Spam protection on web forms uses a hidden honeypot field, a signed time stamp (
 
 New submissions show as a badge on Forms in the menu until someone marks them as dealt with. Each form's submissions can be searched and exported to CSV.
 
+## Workflows (automations)
+
+**Workflows** (permission `workflows.manage`, admins) let Kudu do routine steps by itself. Each workflow is built without code in four parts:
+
+1. **When**, what starts it. This is either something happening (a customer, quotation, job card, invoice, query or form submission is added or changes status, a payment is recorded, the client signs off a job) or a point in time that is checked every morning (a quotation with no answer for N days, an invoice overdue by N days, a job coming up in N days, a warranty ending in N days, a customer with no job for N days).
+2. **Only if**, optional conditions: for example the quotation total is more than R50 000, the customer is an individual, or the client's rating is below 4.
+3. **Wait**, optionally, a number of minutes, hours or days. After the wait the conditions are checked again, and a status trigger must still be in that status.
+4. **Then**, one or more steps in order:
+   - create a task (assigned by the task rules, to the job's technician, or to a chosen person)
+   - send an email from a person's own connected mailbox
+   - log a customer query
+   - change the job's or quotation's status
+   - make a job card from the quotation
+   - make a draft invoice from the job card
+
+Titles and messages can use words in braces such as `{customer}`, `{number}`, `{total}`, `{date}` and `{link}`.
+
+Ten ready-made recipes are included, for example "Accepted quotation → job card", "Completed job → draft invoice", "Chase overdue invoices" and "Remind the customer before a job". A recipe is added switched off so it can be checked first.
+
+**How it behaves**
+
+- Each workflow page shows what the workflow did and when, with links to what it created.
+- "Only once for each …" stops a workflow repeating for the same record, for example when a job is reopened and completed again.
+- Timed workflows only pick up records that reach their point after the workflow is switched on, so switching one on does not act on old records.
+- A workflow started by another workflow's step counts as one level deeper. Nothing starts beyond 3 levels, so two workflows that undo each other stop.
+- A failed step is shown in the history and never stops the action that triggered it.
+
+The daily job `/api/cron/workflows` (05:30 UTC) checks the timed triggers, finishes waits that are due, and deletes history older than 180 days. Waits that are due also finish when anyone opens the dashboard.
+
+Not covered yet: status changes that come from the accounting packages (payments synced from Xero, Sage and the others) do not trigger workflows.
+
 ## Reports and cashflow
 
 **Reports** (menu, office and admins) for a period: last 12 months by default, presets for this/last month, this quarter, this/last year, or any from–to dates. It follows the branch switcher.
